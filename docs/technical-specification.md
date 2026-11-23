@@ -28,6 +28,8 @@ An approved order cannot have its ordered quantities changed. A cancelled or ful
 
 ## Logical data model
 
+See the [database design and ERD](database-design.md) for relationships and PostgreSQL constraints.
+
 | Record | Main fields and constraints |
 |---|---|
 | Product | SKU, name. SKU is unique. |
