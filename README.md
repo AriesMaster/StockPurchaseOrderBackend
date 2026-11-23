@@ -22,6 +22,7 @@ The backend uses Java 21, Spring Boot, Maven, and JUnit. Persistence will use Po
 
 ## Documentation
 
+- [System design](docs/system-design.md)
 - [Backend technical specification](docs/technical-specification.md)
 - [Spring Boot API contract](docs/api-contract.md)
 - [Database design and ERD](docs/database-design.md)
