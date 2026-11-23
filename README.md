@@ -20,4 +20,9 @@ For example, receiving 12 units against an approved order for 20 leaves 8 outsta
 
 The backend uses Java 21, Spring Boot, Maven, and JUnit. Persistence will use PostgreSQL with Spring Data JPA and Hibernate.
 
+## Documentation
+
+- [Backend technical specification](docs/technical-specification.md)
+- [Spring Boot API contract](docs/api-contract.md)
+
 [Angular frontend](https://github.com/AriesMaster/stock-purchase-order-frontend)
