@@ -51,6 +51,7 @@ stateDiagram-v2
 
 ## Detailed designs
 
+- [Physical data flow diagram](physical-dfd.md) for browser, API, and database exchanges.
 - [Backend technical specification](technical-specification.md) for Java responsibilities, business rules, and receipt transaction behaviour.
 - [Spring Boot API contract](api-contract.md) for endpoints, JSON payloads, and error responses.
 - [Database design and ERD](database-design.md) for PostgreSQL tables, relationships, and constraints.
