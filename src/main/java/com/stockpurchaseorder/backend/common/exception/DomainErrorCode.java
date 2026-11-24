@@ -1,0 +1,7 @@
+package com.stockpurchaseorder.backend.common.exception;
+
+public enum DomainErrorCode {
+    INVALID_ORDER_LINE, EMPTY_ORDER, DUPLICATE_SKU,
+    INVALID_ORDER_STATUS, EMPTY_RECEIPT, INVALID_RECEIPT_QUANTITY,
+    SKU_NOT_IN_ORDER, QUANTITY_EXCEEDS_OUTSTANDING
+}

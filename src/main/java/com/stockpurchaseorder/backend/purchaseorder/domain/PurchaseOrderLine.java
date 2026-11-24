@@ -1,5 +1,7 @@
 package com.stockpurchaseorder.backend.purchaseorder.domain;
 
+import com.stockpurchaseorder.backend.common.exception.*;
+
 public final class PurchaseOrderLine {
     private final String sku;
     private final int orderedQuantity;
@@ -7,7 +9,7 @@ public final class PurchaseOrderLine {
 
     public PurchaseOrderLine(String sku, int orderedQuantity) {
         if (sku == null || sku.isBlank() || orderedQuantity <= 0) {
-            throw new IllegalArgumentException("SKU and positive quantity are required");
+            throw new DomainValidationException(DomainErrorCode.INVALID_ORDER_LINE, "SKU and positive quantity are required");
         }
         this.sku = sku;
         this.orderedQuantity = orderedQuantity;
@@ -20,7 +22,7 @@ public final class PurchaseOrderLine {
 
     void receive(int quantity) {
         if (quantity <= 0 || quantity > getOutstandingQuantity()) {
-            throw new IllegalArgumentException("Invalid receipt quantity");
+            throw new DomainValidationException(DomainErrorCode.INVALID_RECEIPT_QUANTITY, "Invalid receipt quantity");
         }
         receivedQuantity += quantity;
     }
