@@ -1,6 +1,6 @@
 # Physical data flow diagram
 
-**Status.** Proposed Level 1 physical DFD for the first release. It shows the implementation path for order approval, receipt processing, and inventory queries.
+**Status.** Target Level 1 physical DFD for the first release. Angular public shell, Spring Boot runtime and PostgreSQL schema exist; the business data flows shown are not yet operational. It shows the implementation path for order approval, receipt processing, and inventory queries.
 
 ```mermaid
 flowchart TB

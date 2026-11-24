@@ -1,6 +1,6 @@
 # Backend technical specification
 
-**Status.** Proposed design for the first release. A Java prototype has exercised the purchase order rules with JUnit. Database persistence and HTTP endpoints are planned.
+**Status.** First-release design with implemented Java domain rules, typed domain exceptions and global problem-detail mapping. PostgreSQL connectivity and the Flyway schema are verified. JPA mappings, application services and business HTTP endpoints remain planned.
 
 ## Purpose and scope
 
@@ -47,6 +47,10 @@ See the [database design and ERD](database-design.md) for relationships and Post
 3. Save the receipt and its lines, update received quantities and stock balances, and append movements. Commit together. Roll back all writes if any part fails.
 
 Provision the inventory balance when creating a product. Use a database uniqueness constraint for receipt keys as a backstop. Store receipt response data needed for replay so a retry can return the original receipt even after a later delivery changes the order.
+
+## Implemented infrastructure
+
+Spring Boot 4.0.10 targets Java 21. Hibernate validates rather than creates the schema; Flyway manages application migrations. HikariCP uses a maximum pool size of three and minimum idle of one. Local tests use H2 with Flyway disabled. The latest reported test run passed 13 tests; the subsequent PostgreSQL startup and Actuator health check succeeded. See [database operations](database-operations.md).
 
 ## Verification
 

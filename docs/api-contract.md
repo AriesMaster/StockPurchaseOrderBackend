@@ -1,6 +1,6 @@
 # Spring Boot API contract
 
-**Status.** Proposed endpoints and payloads for the Angular integration.
+**Status.** Proposed business endpoints and payloads for Angular integration. Global domain exception mapping is implemented and unit-tested; business controllers and HTTP contract tests are pending.
 
 ## Endpoints
 

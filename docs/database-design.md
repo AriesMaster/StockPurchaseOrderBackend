@@ -1,6 +1,6 @@
 # Database design
 
-**Status.** Proposed PostgreSQL schema for the first release. The system tracks whole-unit quantities at one stock location.
+**Status.** Implemented initial PostgreSQL schema for the first release. The system tracks whole-unit quantities at one stock location.
 
 ## Entity relationship diagram
 
@@ -33,6 +33,10 @@ A purchase order line can be fulfilled by several deliveries. Every receipt line
 The receipt service creates the receipt lines and their stock movements in the same transaction. The unique movement key enforces at most one movement per receipt line. The service ensures at least one line per order and receipt and exactly one movement per line.
 
 Use `bigint` identity columns for generated IDs, `integer` for quantities, `timestamptz` for timestamps, and `text` for SKUs and idempotency keys. Require values for all listed columns.
+
+## Implementation status
+
+Flyway `V1__initial_schema.sql` creates the seven application tables, constraints and indexes, enables RLS and revokes direct privileges from `anon`, `authenticated` and `PUBLIC`. V1 is applied and validated on the development Supabase database. Flyway's separate history table is hardened through the manual administration script. See [database operations](database-operations.md). JPA mappings and persistence tests remain pending.
 
 ## Example
 

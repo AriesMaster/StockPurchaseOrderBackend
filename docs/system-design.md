@@ -1,6 +1,6 @@
 # Stock and Purchase Order System Design
 
-**Status.** Proposed design for the first release. The purchase order rules have been prototyped in Java. The Angular screens, HTTP endpoints, and PostgreSQL persistence are planned.
+**Status.** First-release design. The Angular public homepage, Java purchase order domain, exception mapping and PostgreSQL schema are implemented. Backend startup and health are verified; business screens, endpoints and JPA persistence remain planned.
 
 ## Purpose and scope
 
@@ -45,9 +45,10 @@ stateDiagram-v2
 
 ## Implementation and verification
 
-1. Commit the Java 21 starter and run its JUnit tests through GitHub Actions.
-2. Connect the Spring Boot API to PostgreSQL. Verify receipts, concurrent submissions, retries, and rollback with integration tests.
-3. Connect the Angular screens and run the 20-unit purchase order example end to end.
+1. Completed: Java 21-targeted starter, domain tests, PostgreSQL connection, Flyway V1 and local health check.
+2. Next: JPA entities, repositories and PostgreSQL integration tests.
+3. Implement transactional services and REST endpoints; verify retries, concurrency and rollback.
+4. Connect Angular screens, verify the end-to-end example and configure CI/CD.
 
 ## Detailed designs
 

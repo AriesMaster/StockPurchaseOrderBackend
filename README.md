@@ -2,7 +2,7 @@
 
 Java and Spring Boot REST API for purchase order approval, delivery recording and inventory tracking for a small business.
 
-**Status:** Active development. The Spring Boot starter, Maven wrapper, validation, Actuator and OpenAPI dependencies are committed. The initial application-context test and local Maven build passed, and Tomcat started on port 8080. Domain logic, REST controllers and database persistence are not yet implemented.
+**Status:** Active development (24 November 2026). Purchase order domain rules, typed exceptions and problem-detail mapping are implemented. PostgreSQL connectivity, Flyway V1 and Actuator health are verified locally. JPA entities, repositories, business controllers and transactional receipt processing remain pending.
 
 ## Technology
 
@@ -14,9 +14,9 @@ Java and Spring Boot REST API for purchase order approval, delivery recording an
 | Validation | Jakarta Bean Validation | Installed |
 | API documentation | SpringDoc OpenAPI 3.0.3 | Installed |
 | Monitoring | Spring Boot Actuator | Installed |
-| Testing | JUnit, Spring Boot Test | Starter test |
-| Persistence | Spring Data JPA, Hibernate, PostgreSQL | Planned |
-| Migrations | Flyway | Proposed |
+| Testing | JUnit, Spring Boot Test | 13 tests previously passed |
+| Persistence | Spring Data JPA, Hibernate, PostgreSQL | Connected; mappings pending |
+| Migrations | Flyway | V1 applied and validated |
 
 ## Getting started
 
@@ -29,6 +29,8 @@ cd StockPurchaseOrderBackend
 .\mvnw.cmd spring-boot:run
 ```
 
+Before starting the application, configure `STOCKFLOW_DB_URL`, `STOCKFLOW_DB_USERNAME` and `STOCKFLOW_DB_PASSWORD` in your local environment. See [database setup and operations](docs/database-operations.md). Tests use an isolated H2 profile; they do not require Supabase credentials.
+
 On Linux/macOS use `./mvnw` instead of `.\mvnw.cmd`.
 
 | Local endpoint | Purpose |
@@ -37,7 +39,7 @@ On Linux/macOS use `./mvnw` instead of `.\mvnw.cmd`.
 | http://localhost:8080/swagger-ui/index.html | Swagger UI |
 | http://localhost:8080/v3/api-docs | OpenAPI JSON |
 
-These endpoints are expected from the configured dependencies; browser responses have not yet been independently verified. Swagger will have no business operations until controllers are implemented.
+Actuator returned `{"groups":["liveness","readiness"],"status":"UP"}` on 24 November 2026. Swagger and OpenAPI browser responses have not been independently verified. Swagger will have no business operations until controllers are implemented.
 
 ## Current repository structure
 
@@ -52,10 +54,16 @@ These endpoints are expected from the configured dependencies; browser responses
 ├── src/
 │   ├── main/
 │   │   ├── java/com/stockpurchaseorder/backend/
-│   │   │   └── StockPurchaseOrderBackendApplication.java
-│   │   └── resources/application.properties
-│   └── test/java/com/stockpurchaseorder/backend/
-│       └── StockPurchaseOrderBackendApplicationTests.java
+│   │   │   ├── StockPurchaseOrderBackendApplication.java
+│   │   │   ├── common/exception/
+│   │   │   └── purchaseorder/domain/
+│   │   └── resources/
+│   │       ├── application.properties
+│   │       └── db/migration/V1__initial_schema.sql
+│   └── test/
+│       ├── java/com/stockpurchaseorder/backend/
+│       └── resources/application-test.properties
+├── scripts/database/secure_flyway_history.sql
 ├── pom.xml
 ├── mvnw
 └── mvnw.cmd
@@ -86,10 +94,13 @@ See the API contract for payloads, error codes and replay semantics.
 ## Roadmap
 
 - [x] Spring Boot scaffold, Maven build and starter context test
-- [ ] Domain models and JUnit business-rule tests
-- [ ] PostgreSQL persistence, repositories and migrations
+- [x] Domain models and JUnit business-rule tests
+- [x] Typed domain exceptions and problem-detail mapping
+- [x] PostgreSQL connection, Flyway V1, connection pool and local health verification
+- [x] Database RLS and history table hardening on the development database
+- [ ] JPA entities and repositories
 - [ ] Transactional receipt processing and idempotency
-- [ ] REST controllers and problem responses
+- [ ] Business REST controllers and HTTP contract tests
 - [ ] Integration and concurrency tests
 - [ ] Angular integration
 - [ ] CI/CD and deployment
@@ -102,6 +113,7 @@ Authentication and permission rules remain open design decisions. Do not commit 
 - [Technical specification](docs/technical-specification.md)
 - [API contract](docs/api-contract.md)
 - [Database design and ERD](docs/database-design.md)
+- [Database setup and operations](docs/database-operations.md)
 - [Physical DFD](docs/physical-dfd.md)
 - [Angular frontend](https://github.com/AriesMaster/StockPurchaseOrderFrontend)
 
