@@ -11,7 +11,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DomainValidationException.class)
     public ProblemDetail handleValidation(DomainValidationException exception) {
         HttpStatus status = exception.getCode() == DomainErrorCode.SKU_NOT_IN_ORDER
-                ? HttpStatus.UNPROCESSABLE_ENTITY : HttpStatus.BAD_REQUEST;
+                ? HttpStatus.UNPROCESSABLE_CONTENT : HttpStatus.BAD_REQUEST;
         return problem(status, exception.getCode(), exception.getMessage());
     }
 
