@@ -59,3 +59,18 @@ The same key with equivalent SKU quantities returns the original receipt body wi
 Errors use `application/problem+json` with a human-readable detail and a stable code such as `QUANTITY_EXCEEDS_OUTSTANDING` for Angular to handle.
 
 [Backend technical specification](technical-specification.md)
+
+## Planned authentication endpoints
+
+| Method and path | Purpose | Success |
+|---|---|---|
+| POST /api/auth/login | Email/password; access token and refresh cookie | 200 |
+| POST /api/auth/refresh | Rotate refresh cookie; return access token | 200 |
+| POST /api/auth/logout | Revoke session and clear cookie | 204 |
+| GET /api/auth/me | Current identity and role | 200 |
+| POST /api/auth/forgot-password | Generic reset request response | 202 |
+| POST /api/auth/reset-password | Consume reset token and set password | 204 |
+| POST /api/auth/accept-invitation | Consume invitation and set password | 204 |
+| POST /api/users | Admin creates invited account | 201 |
+
+Business endpoints require Bearer access tokens. Missing/invalid credentials return 401; insufficient permissions return 403; throttling returns 429. Cookie endpoints require CSRF protection. See [security design](security-design.md). Payload details will be finalized during implementation.

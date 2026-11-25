@@ -57,3 +57,7 @@ stateDiagram-v2
 - [Spring Boot API contract](api-contract.md) for endpoints, JSON payloads, and error responses.
 - [Database design and ERD](database-design.md) for PostgreSQL tables, relationships, and constraints.
 - [Angular frontend repository](https://github.com/AriesMaster/stock-purchase-order-frontend) for the user interface.
+
+## Authentication extension (planned)
+
+Angular authenticates through Spring Security before accessing business endpoints. Four roles separate purchasing, approval, warehouse and administration. See [security design](security-design.md) for the authoritative permission and session model; this supersedes earlier open authentication decisions.

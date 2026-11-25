@@ -14,7 +14,7 @@ Java and Spring Boot REST API for purchase order approval, delivery recording an
 | Validation | Jakarta Bean Validation | Installed |
 | API documentation | SpringDoc OpenAPI 3.0.3 | Installed |
 | Monitoring | Spring Boot Actuator | Installed |
-| Testing | JUnit, Spring Boot Test | 13 tests previously passed |
+| Testing | JUnit, Spring Boot Test | 16 tests previously passed |
 | Persistence | Spring Data JPA, Hibernate, PostgreSQL | Connected; mappings pending |
 | Migrations | Flyway | V1 applied and validated |
 
@@ -98,17 +98,21 @@ See the API contract for payloads, error codes and replay semantics.
 - [x] Typed domain exceptions and problem-detail mapping
 - [x] PostgreSQL connection, Flyway V1, connection pool and local health verification
 - [x] Database RLS and history table hardening on the development database
-- [ ] JPA entities and repositories
+- [x] Product JPA entity and repository; 16 tests passed
+- [x] Authentication design
+- [ ] User schema and Spring Security authentication
+- [ ] Remaining JPA entities and repositories
 - [ ] Transactional receipt processing and idempotency
 - [ ] Business REST controllers and HTTP contract tests
 - [ ] Integration and concurrency tests
 - [ ] Angular integration
 - [ ] CI/CD and deployment
 
-Authentication and permission rules remain open design decisions. Do not commit database credentials or other secrets.
+Authentication and permission rules are defined in the planned [security design](docs/security-design.md). Do not commit database credentials or other secrets.
 
 ## Documentation
 
+- [Security design](docs/security-design.md)
 - [System design](docs/system-design.md)
 - [Technical specification](docs/technical-specification.md)
 - [API contract](docs/api-contract.md)

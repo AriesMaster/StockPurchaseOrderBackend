@@ -50,7 +50,7 @@ Provision the inventory balance when creating a product. Use a database uniquene
 
 ## Implemented infrastructure
 
-Spring Boot 4.0.10 targets Java 21. Hibernate validates rather than creates the schema; Flyway manages application migrations. HikariCP uses a maximum pool size of three and minimum idle of one. Local tests use H2 with Flyway disabled. The latest reported test run passed 13 tests; the subsequent PostgreSQL startup and Actuator health check succeeded. See [database operations](database-operations.md).
+Spring Boot 4.0.10 targets Java 21. Hibernate validates rather than creates the schema; Flyway manages application migrations. HikariCP uses a maximum pool size of three and minimum idle of one. Local tests use H2 with Flyway disabled. The latest reported test run passed 16 tests; the subsequent PostgreSQL startup and Actuator health check succeeded. See [database operations](database-operations.md).
 
 ## Verification
 
@@ -59,3 +59,7 @@ Spring Boot 4.0.10 targets Java 21. Hibernate validates rather than creates the 
 - Planned HTTP contract tests cover validation, status codes, and replay behaviour.
 
 [API contract](api-contract.md)
+
+## Security extension (planned)
+
+Implement Spring Security, Argon2id, JWT access tokens and rotating opaque refresh tokens before exposing business endpoints. See [security design](security-design.md) for parameters, account lifecycle, authorization and tests. Product entity and repository startup validation succeeded; latest backend test run: 16 passed.

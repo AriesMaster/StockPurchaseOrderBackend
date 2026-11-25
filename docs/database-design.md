@@ -36,10 +36,21 @@ Use `bigint` identity columns for generated IDs, `integer` for quantities, `time
 
 ## Implementation status
 
-Flyway `V1__initial_schema.sql` creates the seven application tables, constraints and indexes, enables RLS and revokes direct privileges from `anon`, `authenticated` and `PUBLIC`. V1 is applied and validated on the development Supabase database. Flyway's separate history table is hardened through the manual administration script. See [database operations](database-operations.md). JPA mappings and persistence tests remain pending.
+Flyway `V1__initial_schema.sql` creates the seven application tables, constraints and indexes, enables RLS and revokes direct privileges from `anon`, `authenticated` and `PUBLIC`. V1 is applied and validated on the development Supabase database. Flyway's separate history table is hardened through the manual administration script. See [database operations](database-operations.md). Product JPA mapping and repository are implemented and startup validation succeeded. Remaining mappings and database integration tests are pending.
 
 ## Example
 
 An approved order contains 20 units of `PAINT-20L`. A delivery of 12 creates a receipt line for 12, leaves 8 outstanding on the order line, adds 12 to the inventory balance, and appends a stock movement of +12. The API can replay that receipt after later deliveries by using the stored order status and outstanding quantity from the original transaction.
 
 [Technical specification](technical-specification.md) · [API contract](api-contract.md)
+
+## Planned authentication ERD
+
+```mermaid
+erDiagram
+    APP_USER ||--o{ AUTH_SESSION : owns
+    AUTH_SESSION ||--o{ REFRESH_TOKEN : rotates
+    APP_USER ||--o{ ACCOUNT_TOKEN : receives
+```
+
+See [security design](security-design.md) for fields and constraints. These tables are not yet migrated.
