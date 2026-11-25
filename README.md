@@ -1,6 +1,8 @@
 # StockFlow — Backend
 
-Java and Spring Boot REST API for purchase order approval, delivery recording and inventory tracking for a small business.
+Java and Spring Boot REST API for purchase order approval, delivery recording and inventory tracking for small hardware stores.
+
+[Portfolio case study](https://thabo.netlify.app/stockflow.html)
 
 **Status:** Active development. `main` includes purchase order domain rules, typed exceptions and problem-detail mapping, the Product JPA entity and repository, and the Flyway V1 business schema. PostgreSQL connectivity and Actuator health have been verified locally. Business REST endpoints and transactional receipt processing are planned.
 
