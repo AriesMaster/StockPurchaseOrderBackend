@@ -21,7 +21,7 @@ class AccessTokenServiceTest {
         assertEquals("ADMIN", jwt.getClaimAsString("role"));
         assertEquals(now.plusSeconds(900), jwt.getExpiresAt());
         assertTrue(jwt.getAudience().contains("stockflow-api"));
-        assertEquals("stockflow", jwt.getIssuer().toString());
+        assertEquals("stockflow", jwt.getClaimAsString("iss"));
     }
 
     @Test
