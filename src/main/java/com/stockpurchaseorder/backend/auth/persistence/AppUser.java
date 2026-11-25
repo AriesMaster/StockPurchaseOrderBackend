@@ -44,6 +44,8 @@ public class AppUser {
         return normalized;
     }
 
+    public String getPasswordHash() { return passwordHash; }
+
     public Long getId() { return id; }
     public String getEmail() { return email; }
     public Role getRole() { return role; }
