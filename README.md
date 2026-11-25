@@ -2,7 +2,11 @@
 
 Java and Spring Boot REST API for purchase order approval, delivery recording and inventory tracking for a small business.
 
-**Status:** Active development (24 November 2026). Purchase order domain rules, typed exceptions and problem-detail mapping are implemented. PostgreSQL connectivity, Flyway V1 and Actuator health are verified locally. JPA entities, repositories, business controllers and transactional receipt processing remain pending.
+**Status:** Active development. `main` includes purchase order domain rules, typed exceptions and problem-detail mapping, the Product JPA entity and repository, and the Flyway V1 business schema. PostgreSQL connectivity and Actuator health have been verified locally. Business REST endpoints and transactional receipt processing are planned.
+
+## Authentication progress
+
+The [authentication feature branch](https://github.com/AriesMaster/StockPurchaseOrderBackend/tree/feature/auth-persistence) adds the Flyway V2 authentication migration, user and session persistence, database-backed credential verification with Argon2id, signed JWT access tokens, and transactional refresh-token rotation. The [Java CI workflow passed](https://github.com/AriesMaster/StockPurchaseOrderBackend/actions/runs/45669864754) on that branch. Login and refresh HTTP endpoints and end-to-end Angular integration remain pending.
 
 ## Technology
 
@@ -15,7 +19,7 @@ Java and Spring Boot REST API for purchase order approval, delivery recording an
 | API documentation | SpringDoc OpenAPI 3.0.3 | Installed |
 | Monitoring | Spring Boot Actuator | Installed |
 | Testing | JUnit, Spring Boot Test | 16 tests previously passed |
-| Persistence | Spring Data JPA, Hibernate, PostgreSQL | Connected; mappings pending |
+| Persistence | Spring Data JPA, Hibernate, PostgreSQL | Product mapped on `main`; authentication mappings on the feature branch |
 | Migrations | Flyway | V1 applied and validated |
 
 ## Getting started
@@ -100,15 +104,17 @@ See the API contract for payloads, error codes and replay semantics.
 - [x] Database RLS and history table hardening on the development database
 - [x] Product JPA entity and repository; 16 tests passed
 - [x] Authentication design
-- [ ] User schema and Spring Security authentication
+- [x] User schema, credential verification and session services on `feature/auth-persistence`
+- [ ] Authentication HTTP endpoints and end-to-end sign-in
 - [ ] Remaining JPA entities and repositories
 - [ ] Transactional receipt processing and idempotency
 - [ ] Business REST controllers and HTTP contract tests
 - [ ] Integration and concurrency tests
 - [ ] Angular integration
-- [ ] CI/CD and deployment
+- [x] Automated Java CI on `feature/auth-persistence`
+- [ ] Deployment
 
-Authentication and permission rules are defined in the planned [security design](docs/security-design.md). Do not commit database credentials or other secrets.
+Authentication and permission rules are described in the [security design](docs/security-design.md). Do not commit database credentials or other secrets.
 
 ## Documentation
 
