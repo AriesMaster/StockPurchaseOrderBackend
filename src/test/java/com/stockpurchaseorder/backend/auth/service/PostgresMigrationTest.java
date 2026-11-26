@@ -1,0 +1,49 @@
+package com.stockpurchaseorder.backend.auth.service;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.postgresql.PostgreSQLContainer;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+@Testcontainers
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
+@ActiveProfiles("test")
+class PostgresMigrationTest {
+    @Container
+    static final PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:17-alpine")
+            .withDatabaseName("stockflow_test")
+            .withInitScript("postgres-test-init.sql");
+
+    @DynamicPropertySource
+    static void databaseProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", postgres::getJdbcUrl);
+        registry.add("spring.datasource.username", postgres::getUsername);
+        registry.add("spring.datasource.password", postgres::getPassword);
+        registry.add("spring.flyway.url", postgres::getJdbcUrl);
+        registry.add("spring.flyway.user", postgres::getUsername);
+        registry.add("spring.flyway.password", postgres::getPassword);
+        registry.add("spring.flyway.enabled", () -> true);
+        registry.add("spring.jpa.hibernate.ddl-auto", () -> "validate");
+    }
+
+    @Autowired JdbcTemplate jdbc;
+
+    @Test
+    void migrationsCreateAuthenticationSchema() {
+        assertEquals("stockflow_test", jdbc.queryForObject("select current_database()", String.class));
+        assertEquals(2, jdbc.queryForObject(
+                "select count(*) from flyway_schema_history where success and version in ('1','2')", Integer.class));
+        assertEquals(4, jdbc.queryForObject(
+                "select count(*) from pg_tables where schemaname = 'public' and rowsecurity and tablename in ('app_user','auth_session','refresh_token','account_token')", Integer.class));
+        assertEquals(Boolean.FALSE, jdbc.queryForObject(
+                "select has_table_privilege('anon', 'public.app_user', 'SELECT')", Boolean.class));
+    }
+}
