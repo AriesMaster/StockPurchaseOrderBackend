@@ -11,7 +11,7 @@ Java and Spring Boot REST API for purchase order approval, delivery recording an
 
 ## Implementation progress
 
-Local verification on 26 November 2026: 98 backend tests and 66 frontend tests passed (164 combined); both builds succeeded. Authentication and administrator employee management were exercised locally. Supplier API integration tests passed; Angular supplier interface compiled, but dedicated frontend supplier tests and browser acceptance remain pending. Four role accounts were provisioned locally; full role-by-role browser verification and isolated public demo protection remain pending. Cloud preview and API proxy CSRF response were verified earlier; latest feature deployment and full cloud workflows have not been reverified.
+Local verification on 26 November 2026: 98 backend and 66 frontend automated tests passed (164 combined), and both builds succeeded before the latest supplier styling refinement. Administrator sign-in, employee administration, supplier creation and supplier directory rendering were demonstrated locally. The refined supplier UI groups contact details, improves responsive form layout and exposes row actions. Dedicated supplier frontend tests, remaining supplier acceptance checks, full role verification and secure public demo access are pending. Latest cloud authentication remains unverified.
 
 Authentication: Argon2id, JWT access tokens, rotating refresh tokens, persisted sessions, CSRF, logout and current-user endpoints. Administrator employee directory supports creation, pagination, role and status changes with session revocation. Supplier directory supports paginated search, creation, updates and soft deactivation; all active roles read, only ADMIN writes.
 
@@ -148,6 +148,10 @@ See the API contract for payloads, error codes and replay semantics.
 
 ## Roadmap
 
+- [x] Local supplier creation and directory rendering
+- [x] Refined supplier layout visually verified
+- [ ] Secure public demo access and deployed login verification
+
 - [x] Spring Boot scaffold, Maven build and starter context test
 - [x] Domain models and JUnit business-rule tests
 - [x] Typed domain exceptions and problem-detail mapping
@@ -162,7 +166,7 @@ See the API contract for payloads, error codes and replay semantics.
 - [x] Employee management API and UI
 - [x] Supplier migration, API and backend tests
 - [x] Supplier Angular interface and production build
-- [ ] Supplier browser acceptance and frontend feature tests
+- [ ] Remaining supplier browser acceptance and frontend feature tests
 - [ ] Remaining JPA entities and repositories
 - [ ] Transactional receipt processing and idempotency
 - [ ] Business REST controllers and HTTP contract tests
@@ -187,6 +191,6 @@ Authentication and permission rules are described in the [security design](docs/
 - [Database design and ERD](docs/database-design.md)
 - [Database setup and operations](docs/database-operations.md)
 - [Physical DFD](docs/physical-dfd.md)
-- [Angular frontend](https://github.com/AriesMaster/StockPurchaseOrderFrontend)
+- [Angular frontend](https://github.com/AriesMaster/StockPurchaseOrderFrontend/tree/feature/auth-ui)
 
 See [LICENSE](LICENSE).
