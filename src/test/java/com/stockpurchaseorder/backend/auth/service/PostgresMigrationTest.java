@@ -138,4 +138,70 @@ class PostgresMigrationTest {
             pool.shutdownNow();
         }
     }
+
+    @Autowired AuthenticationService authentication;
+
+    private String email(long id) {
+        return jdbc.queryForObject("select email from app_user where id=?", String.class, id);
+    }
+
+    private com.stockpurchaseorder.backend.auth.dto.LoginRequest loginRequest(String email, String password) {
+        return new com.stockpurchaseorder.backend.auth.dto.LoginRequest(email, password);
+    }
+
+    @Test
+    void authenticationLoginReturnsSafeUserAndValidCredentials() {
+        long id = user(true);
+        String email = email(id);
+        var result = authentication.login(loginRequest(" " + email.toUpperCase(java.util.Locale.ROOT) + " ", "test-only-password"));
+        assertEquals(id, result.response().user().id());
+        assertEquals(email, result.response().user().email());
+        assertEquals(com.stockpurchaseorder.backend.auth.domain.Role.ADMIN, result.response().user().role());
+        var jwt = access.decode(result.response().accessToken());
+        assertEquals(Long.toString(id), jwt.getSubject());
+        assertEquals(1, jdbc.queryForObject("select count(*) from refresh_token where token_digest=?", Integer.class, tokens.digest(result.refreshToken())));
+    }
+
+    @Test
+    void invalidLoginDoesNotCreateSession() {
+        long id = user(true);
+        var error = assertThrows(org.springframework.security.authentication.BadCredentialsException.class,
+                () -> authentication.login(loginRequest(email(id), "wrong-password")));
+        assertEquals("Invalid credentials", error.getMessage());
+        assertEquals(0, jdbc.queryForObject("select count(*) from auth_session where user_id=?", Integer.class, id));
+    }
+
+    @Test
+    void unknownAndDisabledAccountsReturnSameError() {
+        long id = user(false);
+        var disabled = assertThrows(org.springframework.security.authentication.BadCredentialsException.class,
+                () -> authentication.login(loginRequest(email(id), "test-only-password")));
+        var unknown = assertThrows(org.springframework.security.authentication.BadCredentialsException.class,
+                () -> authentication.login(loginRequest(java.util.UUID.randomUUID() + "@example.test", "test-only-password")));
+        assertEquals("Invalid credentials", disabled.getMessage());
+        assertEquals(disabled.getMessage(), unknown.getMessage());
+        assertEquals(0, jdbc.queryForObject("select count(*) from auth_session where user_id=?", Integer.class, id));
+    }
+
+    @Test
+    void authenticationRefreshReturnsNewCredentialsAndRejectsReplay() {
+        long id = user(true);
+        var first = authentication.login(loginRequest(email(id), "test-only-password"));
+        var second = authentication.refresh(first.refreshToken());
+        assertEquals(first.response().user(), second.response().user());
+        assertNotEquals(first.refreshToken(), second.refreshToken());
+        assertNotEquals(first.response().accessToken(), second.response().accessToken());
+        assertThrows(org.springframework.security.authentication.BadCredentialsException.class,
+                () -> authentication.refresh(first.refreshToken()));
+        assertThrows(org.springframework.security.authentication.BadCredentialsException.class,
+                () -> authentication.refresh(second.refreshToken()));
+    }
+
+    @Test
+    void malformedAndUnknownRefreshTokensAreRejected() {
+        assertThrows(org.springframework.security.authentication.BadCredentialsException.class,
+                () -> authentication.refresh("invalid"));
+        assertThrows(org.springframework.security.authentication.BadCredentialsException.class,
+                () -> authentication.refresh(tokens.generate()));
+    }
 }
