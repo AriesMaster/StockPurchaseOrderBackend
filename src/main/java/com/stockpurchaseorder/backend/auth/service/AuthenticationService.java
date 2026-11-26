@@ -45,6 +45,12 @@ public class AuthenticationService {
         return response(sessions.rotate(token).orElseThrow(AuthenticationService::invalidCredentials));
     }
 
+    public AuthUser currentUser(long id) {
+        var user = users.findById(id).filter(AppUser::isEnabled)
+                .orElseThrow(AuthenticationService::invalidCredentials);
+        return new AuthUser(user.getId(), user.getEmail(), user.getRole());
+    }
+
     private Result response(SessionService.Credentials credentials) {
         var jwt = access.decode(credentials.accessToken());
         var user = users.findById(Long.parseLong(jwt.getSubject())).filter(AppUser::isEnabled)
