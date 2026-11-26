@@ -1,8 +1,44 @@
 # StockFlow — Backend
 
-Java and Spring Boot REST API for purchase order approval, delivery recording and inventory tracking for a small business.
+Java and Spring Boot REST API for purchase order approval, delivery recording and inventory tracking for small hardware stores.
 
-**Status:** Active development (24 November 2026). Purchase order domain rules, typed exceptions and problem-detail mapping are implemented. PostgreSQL connectivity, Flyway V1 and Actuator health are verified locally. JPA entities, repositories, business controllers and transactional receipt processing remain pending.
+[Portfolio case study](https://thabo.netlify.app/stockflow.html)
+
+**Status:** Active development. This is the authentication feature branch; the default-branch baseline is described below. `main` includes purchase order domain rules, typed exceptions and problem-detail mapping, the Product JPA entity and repository, and the Flyway V1 business schema. PostgreSQL connectivity and Actuator health have been verified locally. Business REST endpoints and transactional receipt processing are planned.
+
+## Authentication progress
+
+The [authentication feature branch](https://github.com/AriesMaster/StockPurchaseOrderBackend/tree/feature/auth-persistence) adds the Flyway V2 authentication migration, user and session persistence, database-backed credential verification with Argon2id, signed JWT access tokens, and transactional refresh-token rotation. The [Java CI workflow passed](https://github.com/AriesMaster/StockPurchaseOrderBackend/actions/runs/45669864754) on that branch. Login, refresh, CSRF and current-user HTTP endpoints are implemented and verified. Logout is committed but awaiting local verification. Account provisioning and Angular integration remain pending.
+
+## System users and responsibilities
+
+StockFlow is an internal procurement system for small hardware stores. It supports multiple employee accounts across four roles, with one role per account initially. Public self-registration is not planned; administrators will provision or invite employees.
+
+| Role | Intended responsibilities |
+|---|---|
+| Administrator (`ADMIN`) | Manage accounts, roles, suppliers and products; oversee and perform authorized procurement operations. |
+| Purchasing Officer (`PURCHASING_OFFICER`) | Create draft purchase orders, submit for approval and cancel eligible orders. |
+| Approver (`APPROVER`) | Review and approve orders, and cancel eligible orders. |
+| Warehouse Officer (`WAREHOUSE_OFFICER`) | Record partial or complete deliveries and monitor inventory movements. |
+
+All active roles are intended to read orders, products, inventory and stock movements. Business rules apply even to administrators. The workflow is purchasing officer creates order → approver approves → warehouse officer receives goods → inventory is updated. Four demo accounts (one per role) are planned, not yet provisioned.
+
+Role definitions and authentication foundations exist on the feature branches; business permissions, account invitations and role-specific functional screens remain planned.
+
+## System users and responsibilities
+
+StockFlow is an internal procurement system for small hardware stores. It supports multiple employee accounts across four roles, with one role per account initially. Public self-registration is not planned; administrators will provision or invite employees.
+
+| Role | Intended responsibilities |
+|---|---|
+| Administrator (`ADMIN`) | Manage accounts, roles, suppliers and products; oversee and perform authorized procurement operations. |
+| Purchasing Officer (`PURCHASING_OFFICER`) | Create draft purchase orders, submit for approval and cancel eligible orders. |
+| Approver (`APPROVER`) | Review and approve orders, and cancel eligible orders. |
+| Warehouse Officer (`WAREHOUSE_OFFICER`) | Record partial or complete deliveries and monitor inventory movements. |
+
+All active roles are intended to read orders, products, inventory and stock movements. Business rules apply even to administrators. The workflow is purchasing officer creates order → approver approves → warehouse officer receives goods → inventory is updated. Four demo accounts (one per role) are planned, not yet provisioned.
+
+Role definitions and authentication foundations exist on the feature branches; business permissions, account invitations and role-specific functional screens remain planned.
 
 ## Technology
 
@@ -14,8 +50,8 @@ Java and Spring Boot REST API for purchase order approval, delivery recording an
 | Validation | Jakarta Bean Validation | Installed |
 | API documentation | SpringDoc OpenAPI 3.0.3 | Installed |
 | Monitoring | Spring Boot Actuator | Installed |
-| Testing | JUnit, Spring Boot Test | 16 tests previously passed |
-| Persistence | Spring Data JPA, Hibernate, PostgreSQL | Connected; mappings pending |
+| Testing | JUnit, Mockito, MockMvc, Testcontainers, Spring Boot Test | 54 tests passed in the 26 November local Maven build |
+| Persistence | Spring Data JPA, Hibernate, PostgreSQL | Product mapped on `main`; authentication mappings on the feature branch |
 | Migrations | Flyway | V1 applied and validated |
 
 ## Getting started
@@ -25,11 +61,12 @@ Use JDK 21 and Git. The Maven wrapper manages Maven.
 ```powershell
 git clone https://github.com/AriesMaster/StockPurchaseOrderBackend.git
 cd StockPurchaseOrderBackend
+git switch feature/auth-persistence
 .\mvnw.cmd clean verify
 .\mvnw.cmd spring-boot:run
 ```
 
-Before starting the application, configure `STOCKFLOW_DB_URL`, `STOCKFLOW_DB_USERNAME` and `STOCKFLOW_DB_PASSWORD` in your local environment. See [database setup and operations](docs/database-operations.md). Tests use an isolated H2 profile; they do not require Supabase credentials.
+Before starting the application, configure `STOCKFLOW_DB_URL`, `STOCKFLOW_DB_USERNAME` and `STOCKFLOW_DB_PASSWORD` in your local environment. See [database setup and operations](docs/database-operations.md). Feature-branch tests use isolated H2 and Docker-backed PostgreSQL 17 via Testcontainers; start Docker before running them. No Supabase credentials are needed for tests. For feature-branch runtime, also configure STOCKFLOW_JWT_SECRET_BASE64 with a securely generated Base64-encoded key of at least 32 bytes.
 
 On Linux/macOS use `./mvnw` instead of `.\mvnw.cmd`.
 
@@ -39,7 +76,11 @@ On Linux/macOS use `./mvnw` instead of `.\mvnw.cmd`.
 | http://localhost:8080/swagger-ui/index.html | Swagger UI |
 | http://localhost:8080/v3/api-docs | OpenAPI JSON |
 
-Actuator returned `{"groups":["liveness","readiness"],"status":"UP"}` on 24 November 2026. Swagger and OpenAPI browser responses have not been independently verified. Swagger will have no business operations until controllers are implemented.
+Actuator returned `{"groups":["liveness","readiness"],"status":"UP"}` on 24 November 2026. Swagger and OpenAPI browser responses have not been independently verified. Swagger is currently blocked by the feature-branch security configuration; business controllers remain planned.
+
+## Build and test verification
+
+On 26 November 2026, a local Windows Maven build reported 54 tests passed with zero failures, errors or skips, and reached JAR packaging. Run `.\mvnw.cmd clean verify` from PowerShell to reproduce the build and test run for your checkout.
 
 ## Current repository structure
 
@@ -98,17 +139,21 @@ See the API contract for payloads, error codes and replay semantics.
 - [x] Typed domain exceptions and problem-detail mapping
 - [x] PostgreSQL connection, Flyway V1, connection pool and local health verification
 - [x] Database RLS and history table hardening on the development database
-- [x] Product JPA entity and repository; 16 tests passed
+- [x] Product JPA entity and repository
 - [x] Authentication design
-- [ ] User schema and Spring Security authentication
+- [x] User schema, credential verification and session services on `feature/auth-persistence`
+- [x] Login, refresh, CSRF and current-user HTTP endpoints on the authentication branch
+- [ ] Verify logout, provision accounts and complete end-to-end sign-in
 - [ ] Remaining JPA entities and repositories
 - [ ] Transactional receipt processing and idempotency
 - [ ] Business REST controllers and HTTP contract tests
-- [ ] Integration and concurrency tests
+- [x] Authentication integration and refresh concurrency tests on the feature branch
+- [ ] Business integration and concurrency tests
 - [ ] Angular integration
-- [ ] CI/CD and deployment
+- [x] Automated Java CI on `feature/auth-persistence`
+- [ ] Deployment
 
-Authentication and permission rules are defined in the planned [security design](docs/security-design.md). Do not commit database credentials or other secrets.
+Authentication and permission rules are described in the [security design](docs/security-design.md). Do not commit database credentials or other secrets.
 
 ## Documentation
 
