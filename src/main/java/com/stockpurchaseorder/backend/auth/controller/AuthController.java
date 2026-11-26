@@ -13,10 +13,12 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/auth")
 public class AuthController {
     private final AuthenticationService authentication;
+    private final com.stockpurchaseorder.backend.auth.service.SessionService sessions;
     private static final String COOKIE = "__Secure-stockflow-refresh";
 
-    public AuthController(AuthenticationService authentication) {
+    public AuthController(AuthenticationService authentication, com.stockpurchaseorder.backend.auth.service.SessionService sessions) {
         this.authentication = authentication;
+        this.sessions = sessions;
     }
 
     @GetMapping("/csrf")
@@ -33,6 +35,15 @@ public class AuthController {
     @PostMapping("/refresh")
     public ResponseEntity<AuthResponse> refresh(@CookieValue(name = COOKIE, required = false) String token) {
         return credentials(authentication.refresh(token));
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(@CookieValue(name = COOKIE, required = false) String token) {
+        sessions.revokeByRefreshToken(token);
+        var cookie = ResponseCookie.from(COOKIE, "").httpOnly(true).secure(true)
+                .sameSite("Strict").path("/api/auth").maxAge(0).build();
+        return ResponseEntity.noContent().cacheControl(CacheControl.noStore())
+                .header(HttpHeaders.SET_COOKIE, cookie.toString()).build();
     }
 
     @GetMapping("/me")
