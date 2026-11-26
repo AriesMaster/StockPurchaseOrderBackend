@@ -53,12 +53,15 @@ class EmployeeApiIntegrationTest {
     }
 
     private String login(String email) throws Exception {
+        return json.readTree(loginResult(email).getResponse().getContentAsString()).get("accessToken").asText();
+    }
+
+    private MvcResult loginResult(String email) throws Exception {
         Cookie csrf = csrf();
-        MvcResult result = mvc.perform(post("/api/auth/login").cookie(csrf)
+        return mvc.perform(post("/api/auth/login").cookie(csrf)
                 .header("X-XSRF-TOKEN", csrf.getValue()).contentType("application/json")
                 .content(json.writeValueAsString(java.util.Map.of("email", email, "password", PASSWORD))))
                 .andExpect(status().isOk()).andReturn();
-        return json.readTree(result.getResponse().getContentAsString()).get("accessToken").asText();
     }
 
     private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder create(String token, String email, String password) throws Exception {
@@ -113,5 +116,77 @@ class EmployeeApiIntegrationTest {
     void missingCsrfIsRejected() throws Exception {
         mvc.perform(post("/api/employees").header("Authorization", "Bearer " + login(ADMIN))
                 .contentType("application/json").content("{}")).andExpect(status().isForbidden());
+    }
+    private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder change(
+            String token, long id, String field, String body) throws Exception {
+        Cookie csrf = csrf();
+        return patch("/api/employees/" + id + "/" + field).cookie(csrf)
+                .header("X-XSRF-TOKEN", csrf.getValue()).header("Authorization", "Bearer " + token)
+                .contentType("application/json").content(body);
+    }
+
+    private String freshEmployee() {
+        String email = "lifecycle-" + java.util.UUID.randomUUID() + "@example.com";
+        seedUser(email, Role.PURCHASING_OFFICER);
+        return email;
+    }
+
+    private void assertRevoked(MvcResult credentials) throws Exception {
+        String token = json.readTree(credentials.getResponse().getContentAsString()).get("accessToken").asText();
+        mvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + token))
+                .andExpect(status().isUnauthorized());
+        Cookie csrf = csrf();
+        Cookie refresh = credentials.getResponse().getCookie("__Secure-stockflow-refresh");
+        assertNotNull(refresh);
+        mvc.perform(post("/api/auth/refresh").cookie(csrf, refresh)
+                .header("X-XSRF-TOKEN", csrf.getValue())).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void deactivationRevokesCredentialsAndReactivationRequiresNewLogin() throws Exception {
+        String email = freshEmployee();
+        long id = users.findByEmail(email).orElseThrow().getId();
+        MvcResult credentials = loginResult(email);
+        String admin = login(ADMIN);
+        mvc.perform(change(admin, id, "status", "{\"enabled\":false}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.enabled").value(false));
+        assertRevoked(credentials);
+        Cookie csrf = csrf();
+        mvc.perform(post("/api/auth/login").cookie(csrf).header("X-XSRF-TOKEN", csrf.getValue())
+                .contentType("application/json").content(json.writeValueAsString(java.util.Map.of("email", email, "password", PASSWORD))))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(change(admin, id, "status", "{\"enabled\":true}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.enabled").value(true));
+        assertRevoked(credentials);
+        mvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + login(email)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void roleChangeRevokesCredentialsAndNewLoginReflectsNewRole() throws Exception {
+        String email = freshEmployee();
+        long id = users.findByEmail(email).orElseThrow().getId();
+        MvcResult credentials = loginResult(email);
+        mvc.perform(change(login(ADMIN), id, "role", "{\"role\":\"APPROVER\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.role").value("APPROVER"));
+        assertRevoked(credentials);
+        mvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + login(email)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.role").value("APPROVER"));
+    }
+
+    @Test
+    void administratorAccountIsProtected() throws Exception {
+        long id = users.findByEmail(ADMIN).orElseThrow().getId();
+        String token = login(ADMIN);
+        mvc.perform(change(token, id, "status", "{\"enabled\":false}")).andExpect(status().isForbidden());
+        mvc.perform(change(token, id, "role", "{\"role\":\"APPROVER\"}")).andExpect(status().isForbidden());
+    }
+
+    @Test
+    void operationalEmployeeCannotChangeAccounts() throws Exception {
+        long id = users.findByEmail(BUYER).orElseThrow().getId();
+        String token = login(BUYER);
+        mvc.perform(change(token, id, "role", "{\"role\":\"APPROVER\"}")).andExpect(status().isForbidden());
+        mvc.perform(change(token, id, "status", "{\"enabled\":false}")).andExpect(status().isForbidden());
     }
 }
