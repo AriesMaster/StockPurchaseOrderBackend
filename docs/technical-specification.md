@@ -1,6 +1,10 @@
 # Backend technical specification
 
-**Status.** First-release design with implemented Java domain rules, typed domain exceptions and global problem-detail mapping. PostgreSQL connectivity and the Flyway schema are verified. JPA mappings, application services and business HTTP endpoints remain planned.
+## Implementation checkpoint — 26 November 2026
+
+Authentication and employee administration APIs are implemented; supplier DTOs, validation, transactional service, repository, controller and role authorization are implemented and tested. Supplier changes use soft deactivation, not deletion. Concurrent supplier writes and order linkage remain outstanding. Local Maven verification passed 98 tests; Angular build and 66 existing tests passed. Procurement services and endpoints below remain planned.
+
+**Original design baseline.** See the implementation checkpoint above for current feature-branch status.
 
 ## Purpose and scope
 
