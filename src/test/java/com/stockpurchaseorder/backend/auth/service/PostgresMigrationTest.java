@@ -300,6 +300,53 @@ class PostgresMigrationTest {
     void httpRefreshRequiresCsrfAndOtherEndpointsRemainDenied() throws Exception {
         var mvc = mvc();
         mvc.perform(post("/api/auth/refresh").secure(true)).andExpect(status().isForbidden());
-        mvc.perform(get("/api/auth/me").secure(true)).andExpect(status().isForbidden());
+        mvc.perform(get("/api/auth/me").secure(true)).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void httpMeAcceptsValidBearerToken() throws Exception {
+        long id = user(true);
+        var result = authentication.login(loginRequest(email(id), "test-only-password"));
+        mvc().perform(get("/api/auth/me").secure(true)
+                .header("Authorization", "Bearer " + result.response().accessToken()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.email").value(email(id)))
+                .andExpect(jsonPath("$.role").value("ADMIN"));
+    }
+
+    @Test
+    void httpMeRejectsRevokedSession() throws Exception {
+        long id = user(true);
+        var credentials = sessions.create(id).orElseThrow();
+        sessions.revoke(credentials.sessionId(), id);
+        mvc().perform(get("/api/auth/me").secure(true)
+                .header("Authorization", "Bearer " + credentials.accessToken()))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void httpMeRejectsDisabledAccount() throws Exception {
+        long id = user(true);
+        var credentials = sessions.create(id).orElseThrow();
+        jdbc.update("update app_user set enabled=false where id=?", id);
+        mvc().perform(get("/api/auth/me").secure(true)
+                .header("Authorization", "Bearer " + credentials.accessToken()))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void httpMeRejectsStaleRole() throws Exception {
+        long id = user(true);
+        var credentials = sessions.create(id).orElseThrow();
+        jdbc.update("update app_user set role='APPROVER' where id=?", id);
+        mvc().perform(get("/api/auth/me").secure(true)
+                .header("Authorization", "Bearer " + credentials.accessToken()))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void httpMeRejectsInvalidJwt() throws Exception {
+        mvc().perform(get("/api/auth/me").secure(true)
+                .header("Authorization", "Bearer invalid-token"))
+                .andExpect(status().isUnauthorized());
     }
 }
