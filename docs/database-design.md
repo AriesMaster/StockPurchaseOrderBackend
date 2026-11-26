@@ -1,6 +1,27 @@
 # Database design
 
-**Status.** Implemented initial PostgreSQL schema for the first release. The system tracks whole-unit quantities at one stock location.
+## Implemented migration V3: supplier
+
+Supplier has identity bigint id, required nonblank name (150), optional contact_name (150), email (254), phone (30), address (500), active (default true), created_at and updated_at (timestamptz). RLS is enabled and direct privileges revoked from anon, authenticated and PUBLIC. Duplicate names are allowed. Purchase-order supplier foreign key is not yet implemented.
+
+```mermaid
+erDiagram
+ SUPPLIER {
+ bigint id PK
+ varchar name
+ varchar contact_name
+ varchar email
+ varchar phone
+ varchar address
+ boolean active
+ timestamptz created_at
+ timestamptz updated_at
+ }
+```
+
+V1 business schema, V2 authentication schema and V3 supplier schema were applied and validated on 26 November 2026. The original business ERD below does not yet connect suppliers to orders.
+
+**Original design baseline.** See the implementation checkpoint above for current feature-branch status.
 
 ## Entity relationship diagram
 
