@@ -12,6 +12,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
@@ -203,5 +205,101 @@ class PostgresMigrationTest {
                 () -> authentication.refresh("invalid"));
         assertThrows(org.springframework.security.authentication.BadCredentialsException.class,
                 () -> authentication.refresh(tokens.generate()));
+    }
+
+    @Autowired org.springframework.web.context.WebApplicationContext web;
+    @Autowired org.springframework.security.web.FilterChainProxy security;
+
+    private org.springframework.test.web.servlet.MockMvc mvc() {
+        return org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup(web)
+                .addFilters(security).build();
+    }
+
+    private jakarta.servlet.http.Cookie csrfCookie(org.springframework.test.web.servlet.MockMvc mvc) throws Exception {
+        var response = mvc.perform(get("/api/auth/csrf").secure(true))
+                .andExpect(status().isNoContent()).andReturn().getResponse();
+        var cookie = response.getCookie("XSRF-TOKEN");
+        assertNotNull(cookie);
+        assertTrue(cookie.getSecure());
+        assertFalse(cookie.isHttpOnly());
+        return cookie;
+    }
+
+    private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder loginHttp(String email, String password) {
+        return post("/api/auth/login").secure(true).contentType("application/json")
+                .content("{\"email\":\"" + email + "\",\"password\":\"" + password + "\"}");
+    }
+
+    @Test
+    void httpLoginIssuesSecureCookieAndSafeJson() throws Exception {
+        var mvc = mvc();
+        var csrf = csrfCookie(mvc);
+        long id = user(true);
+        var response = mvc.perform(loginHttp(email(id), "test-only-password")
+                .cookie(csrf).header("X-XSRF-TOKEN", csrf.getValue()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.user.id").value(id))
+                .andExpect(jsonPath("$.accessToken").isString())
+                .andExpect(jsonPath("$.refreshToken").doesNotExist())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andReturn().getResponse();
+        var refresh = response.getCookie("__Secure-stockflow-refresh");
+        assertNotNull(refresh);
+        assertTrue(refresh.isHttpOnly());
+        assertTrue(refresh.getSecure());
+        assertEquals("/api/auth", refresh.getPath());
+        assertTrue(response.getHeaders("Set-Cookie").stream().anyMatch(h -> h.contains("SameSite=Strict") && h.contains("__Secure-stockflow-refresh")));
+        assertFalse(response.getContentAsString().contains(refresh.getValue()));
+    }
+
+    @Test
+    void httpLoginRejectsMissingCsrf() throws Exception {
+        mvc().perform(loginHttp(email(user(true)), "test-only-password"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void httpLoginRejectsIncorrectCsrf() throws Exception {
+        var mvc = mvc();
+        var csrf = csrfCookie(mvc);
+        mvc.perform(loginHttp(email(user(true)), "test-only-password")
+                .cookie(csrf).header("X-XSRF-TOKEN", "incorrect"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void httpLoginRejectsWrongPassword() throws Exception {
+        var mvc = mvc();
+        var csrf = csrfCookie(mvc);
+        mvc.perform(loginHttp(email(user(true)), "wrong")
+                .cookie(csrf).header("X-XSRF-TOKEN", csrf.getValue()))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("Invalid credentials"));
+    }
+
+    @Test
+    void httpRefreshRotatesAndRejectsReplay() throws Exception {
+        var mvc = mvc();
+        var csrf = csrfCookie(mvc);
+        var first = mvc.perform(loginHttp(email(user(true)), "test-only-password")
+                .cookie(csrf).header("X-XSRF-TOKEN", csrf.getValue()))
+                .andExpect(status().isOk()).andReturn().getResponse().getCookie("__Secure-stockflow-refresh");
+        assertNotNull(first);
+        var second = mvc.perform(post("/api/auth/refresh").secure(true).cookie(csrf, first)
+                .header("X-XSRF-TOKEN", csrf.getValue()))
+                .andExpect(status().isOk()).andReturn().getResponse().getCookie("__Secure-stockflow-refresh");
+        assertNotNull(second);
+        assertNotEquals(first.getValue(), second.getValue());
+        mvc.perform(post("/api/auth/refresh").secure(true).cookie(csrf, first)
+                .header("X-XSRF-TOKEN", csrf.getValue())).andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/auth/refresh").secure(true).cookie(csrf, second)
+                .header("X-XSRF-TOKEN", csrf.getValue())).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void httpRefreshRequiresCsrfAndOtherEndpointsRemainDenied() throws Exception {
+        var mvc = mvc();
+        mvc.perform(post("/api/auth/refresh").secure(true)).andExpect(status().isForbidden());
+        mvc.perform(get("/api/auth/me").secure(true)).andExpect(status().isForbidden());
     }
 }
