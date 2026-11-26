@@ -20,6 +20,15 @@ public class GlobalExceptionHandler {
         return problem(HttpStatus.CONFLICT, exception.getCode(), exception.getMessage());
     }
 
+    @ExceptionHandler(org.springframework.web.bind.MethodArgumentNotValidException.class)
+    public ProblemDetail handleRequestValidation(org.springframework.web.bind.MethodArgumentNotValidException exception) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Request validation failed");
+        problem.setProperty("code", "INVALID_REQUEST");
+        problem.setProperty("fields", exception.getBindingResult().getFieldErrors().stream()
+                .map(error -> error.getField()).distinct().sorted().toList());
+        return problem;
+    }
+
     private ProblemDetail problem(HttpStatus status, DomainErrorCode code, String detail) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, detail);
         problem.setProperty("code", code.name());
