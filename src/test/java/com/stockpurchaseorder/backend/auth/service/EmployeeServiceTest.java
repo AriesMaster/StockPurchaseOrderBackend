@@ -19,6 +19,7 @@ class EmployeeServiceTest {
     private AppUserRepository users;
     private PasswordEncoder passwords;
     private EmployeeService service;
+    private com.stockpurchaseorder.backend.auth.persistence.AuthSessionRepository sessions;
     private static final String PASSWORD = "test-password-only-123";
     private static final String HASH = "$argon2id$test";
 
@@ -26,7 +27,8 @@ class EmployeeServiceTest {
     void setup() {
         users = mock(AppUserRepository.class);
         passwords = mock(PasswordEncoder.class);
-        service = new EmployeeService(users, passwords);
+        sessions = mock(com.stockpurchaseorder.backend.auth.persistence.AuthSessionRepository.class);
+        service = new EmployeeService(users, passwords, sessions);
     }
 
     @Test
@@ -85,5 +87,33 @@ class EmployeeServiceTest {
         assertThrows(ResponseStatusException.class, () -> service.list(-1, 20));
         assertThrows(ResponseStatusException.class, () -> service.list(0, 0));
         verifyNoInteractions(users);
+    }
+    @Test
+    void roleChangeRevokesSessions() {
+        var user = new AppUser("buyer@example.com", Role.PURCHASING_OFFICER);
+        user.activate(HASH);
+        when(users.findById(1L)).thenReturn(Optional.of(user));
+        assertEquals(Role.APPROVER, service.changeRole(1L, Role.APPROVER).role());
+        verify(sessions).revokeAllForUser(eq(1L), any(java.time.Instant.class));
+    }
+
+    @Test
+    void statusChangeRevokesSessions() {
+        var user = new AppUser("buyer@example.com", Role.PURCHASING_OFFICER);
+        user.activate(HASH);
+        when(users.findById(1L)).thenReturn(Optional.of(user));
+        assertFalse(service.changeStatus(1L, false).enabled());
+        assertTrue(service.changeStatus(1L, true).enabled());
+        verify(sessions, times(2)).revokeAllForUser(eq(1L), any(java.time.Instant.class));
+    }
+
+    @Test
+    void administratorCannotBeDisabledOrDemoted() {
+        when(users.findById(1L)).thenReturn(Optional.of(new AppUser("admin@example.com", Role.ADMIN)));
+        assertEquals(HttpStatus.FORBIDDEN, assertThrows(ResponseStatusException.class,
+                () -> service.changeStatus(1L, false)).getStatusCode());
+        assertEquals(HttpStatus.FORBIDDEN, assertThrows(ResponseStatusException.class,
+                () -> service.changeRole(1L, Role.APPROVER)).getStatusCode());
+        verifyNoInteractions(sessions);
     }
 }
