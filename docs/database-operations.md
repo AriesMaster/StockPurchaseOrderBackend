@@ -33,6 +33,6 @@ Expect successful V1 and RLS enabled on all eight StockFlow tables. Restart and 
 - History security SQL executed successfully; RLS confirmed on history table.
 - Hibernate initialized and Tomcat started on port 8080 in 42.228 seconds.
 - Actuator returned `{"groups":["liveness","readiness"],"status":"UP"}`.
-- Earlier 13 tests passed using isolated H2 configuration; PostgreSQL persistence and concurrency tests are pending.
+- The Maven suite includes tests that use an isolated H2 profile. PostgreSQL-specific persistence and concurrency verification remains pending. See the [backend README](../README.md#build-and-test-verification) for the latest local build result.
 
 The development database uses a privileged connection. RLS is not a substitute for application authorization. Business authentication, least-privilege roles, production TLS verification and deployment remain pending.
