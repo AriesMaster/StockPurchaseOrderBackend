@@ -349,4 +349,47 @@ class PostgresMigrationTest {
                 .header("Authorization", "Bearer invalid-token"))
                 .andExpect(status().isUnauthorized());
     }
+
+    @Test
+    void httpLogoutRevokesSessionEvenWithInvalidBearer() throws Exception {
+        var mvc = mvc();
+        var csrf = csrfCookie(mvc);
+        var credentials = sessions.create(user(true)).orElseThrow();
+        var refresh = new jakarta.servlet.http.Cookie("__Secure-stockflow-refresh", credentials.refreshToken());
+        var response = mvc.perform(post("/api/auth/logout").secure(true).cookie(csrf, refresh)
+                .header("X-XSRF-TOKEN", csrf.getValue()).header("Authorization", "Bearer invalid-token"))
+                .andExpect(status().isNoContent()).andReturn().getResponse();
+        assertEquals(0, response.getCookie("__Secure-stockflow-refresh").getMaxAge());
+        assertTrue(revoked(credentials.sessionId()));
+        mvc.perform(get("/api/auth/me").secure(true).header("Authorization", "Bearer " + credentials.accessToken()))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/auth/refresh").secure(true).cookie(csrf, refresh)
+                .header("X-XSRF-TOKEN", csrf.getValue())).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void httpLogoutRequiresCsrf() throws Exception {
+        var credentials = sessions.create(user(true)).orElseThrow();
+        mvc().perform(post("/api/auth/logout").secure(true)
+                .cookie(new jakarta.servlet.http.Cookie("__Secure-stockflow-refresh", credentials.refreshToken())))
+                .andExpect(status().isForbidden());
+        assertFalse(revoked(credentials.sessionId()));
+    }
+
+    @Test
+    void httpLogoutIsIdempotentWithoutCookie() throws Exception {
+        var mvc = mvc();
+        var csrf = csrfCookie(mvc);
+        mvc.perform(post("/api/auth/logout").secure(true).cookie(csrf)
+                .header("X-XSRF-TOKEN", csrf.getValue())).andExpect(status().isNoContent());
+    }
+
+    @Test
+    void logoutWithRotatedTokenRevokesSession() {
+        var first = sessions.create(user(true)).orElseThrow();
+        var second = sessions.rotate(first.refreshToken()).orElseThrow();
+        sessions.revokeByRefreshToken(first.refreshToken());
+        assertTrue(revoked(first.sessionId()));
+        assertTrue(sessions.rotate(second.refreshToken()).isEmpty());
+    }
 }
