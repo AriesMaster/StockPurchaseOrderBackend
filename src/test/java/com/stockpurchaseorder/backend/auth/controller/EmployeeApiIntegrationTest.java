@@ -189,4 +189,31 @@ class EmployeeApiIntegrationTest {
         mvc.perform(change(token, id, "role", "{\"role\":\"APPROVER\"}")).andExpect(status().isForbidden());
         mvc.perform(change(token, id, "status", "{\"enabled\":false}")).andExpect(status().isForbidden());
     }
+    @Test
+    void paginationHasStableContract() throws Exception {
+        var result = mvc.perform(get("/api/employees").param("page", "0").param("size", "1")
+                .header("Authorization", "Bearer " + login(ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.number").value(0))
+                .andExpect(jsonPath("$.size").value(1))
+                .andExpect(jsonPath("$.totalElements").value(users.count()))
+                .andExpect(jsonPath("$.totalPages").value(users.count()))
+                .andExpect(jsonPath("$.pageable").doesNotExist())
+                .andExpect(jsonPath("$.content[0].passwordHash").doesNotExist())
+                .andReturn();
+        assertEquals(5, json.readTree(result.getResponse().getContentAsString()).size());
+    }
+
+    @Test
+    void validationResponseDoesNotExposeRejectedPassword() throws Exception {
+        String rejected = "secret-short";
+        var result = mvc.perform(create(login(ADMIN), "invalid@example.com", rejected))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+                .andExpect(jsonPath("$.detail").value("Request validation failed"))
+                .andExpect(jsonPath("$.fields[0]").value("password"))
+                .andReturn();
+        assertFalse(result.getResponse().getContentAsString().contains(rejected));
+    }
 }
