@@ -52,6 +52,15 @@ public class AppUser {
         enabled = true;
     }
 
+    public void changeRole(Role role) {
+        this.role = Objects.requireNonNull(role);
+    }
+
+    public void setEnabled(boolean enabled) {
+        if (enabled && passwordHash == null) throw new IllegalStateException("Account has no password");
+        this.enabled = enabled;
+    }
+
     public String getPasswordHash() { return passwordHash; }
 
     public Long getId() { return id; }
