@@ -1,6 +1,10 @@
 # Stock and Purchase Order System Design
 
-**Status.** First-release design. The Angular public homepage, Java purchase order domain, exception mapping and PostgreSQL schema are implemented. Backend startup and health are verified; business screens, endpoints and JPA persistence remain planned.
+## Implementation checkpoint — 26 November 2026
+
+Authentication, employee administration and supplier management now use Angular feature components and HTTP services, Spring MVC controllers, transactional services, JPA repositories and PostgreSQL. Supplier V3 migration is applied. Employee browser workflows were exercised locally; supplier API tests and Angular compilation passed. Supplier browser acceptance and dedicated frontend tests remain pending. Product and procurement workflows below remain target design.
+
+**Original design baseline.** See the implementation checkpoint above for current feature-branch status.
 
 ## Purpose and scope
 
