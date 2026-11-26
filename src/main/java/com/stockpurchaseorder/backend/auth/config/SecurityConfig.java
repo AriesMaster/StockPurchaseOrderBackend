@@ -44,7 +44,7 @@ public class SecurityConfig {
                 return request.getHeader(token.getHeaderName());
             }
         };
-        return http
+        var chain = http
                 .csrf(csrf -> csrf.csrfTokenRepository(csrfRepository).csrfTokenRequestHandler(csrfHandler))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .formLogin(AbstractHttpConfigurer::disable)
@@ -65,5 +65,13 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/employees").hasRole("ADMIN")
                         .anyRequest().denyAll())
                 .build();
+        // Resource-server configuration exempts bearer requests by default.
+        // StockFlow deliberately requires CSRF for every unsafe HTTP method.
+        chain.getFilters().stream()
+                .filter(org.springframework.security.web.csrf.CsrfFilter.class::isInstance)
+                .map(org.springframework.security.web.csrf.CsrfFilter.class::cast)
+                .forEach(filter -> filter.setRequireCsrfProtectionMatcher(
+                        org.springframework.security.web.csrf.CsrfFilter.DEFAULT_CSRF_MATCHER));
+        return chain;
     }
 }
