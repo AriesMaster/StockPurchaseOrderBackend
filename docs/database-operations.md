@@ -1,5 +1,9 @@
 # Database setup and operations
 
+## Current migration checkpoint
+
+V1 initial business schema, V2 authentication schema and V3 supplier schema were applied and validated on 26 November 2026. The earlier failed V2 history-hardening attempt described below is historical and distinct from the current V2 authentication migration. Do not modify applied migrations. Docker Desktop with WSL 2 supports isolated PostgreSQL Testcontainers verification; the H2 API tests do not use Supabase credentials.
+
 ## Local configuration
 
 StockFlow uses Supabase PostgreSQL 17.12 in the current development environment. Use the session pooler on IPv4 (port 5432) or an appropriate direct connection. Set environment variables outside source control:
@@ -14,7 +18,7 @@ Restart the IDE after changing persistent Windows user variables. Never print or
 
 ## Startup and migrations
 
-Run `.\mvnw.cmd clean spring-boot:run` on Windows. Flyway applies V1 to a fresh database; Hibernate uses `ddl-auto=validate`. Do not edit applied migrations. The current database has seven application tables plus Flyway history. HikariCP maximum pool size is 3, minimum idle 1.
+Run `.\mvnw.cmd clean spring-boot:run` on Windows. Flyway applies V1–V3 to a fresh feature-branch database; Hibernate uses `ddl-auto=validate`. Do not edit applied migrations. V1 contains seven business tables; V2 and V3 add authentication and supplier tables. HikariCP maximum pool size is 3, minimum idle 1.
 
 After initial migration, stop the backend and run [`scripts/database/secure_flyway_history.sql`](../scripts/database/secure_flyway_history.sql) as the database owner in a transaction outside Flyway. This enables RLS and revokes direct client privileges. V2 was attempted, timed out and rolled back; it was relocated outside the migration directory in commit `48ca162`. Modifying Flyway's own history during migration likely caused a lock conflict. Do not reintroduce that migration. Repeat the administration step for new databases.
 
