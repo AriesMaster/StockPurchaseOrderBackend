@@ -49,12 +49,16 @@ public class SecurityConfig {
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable)
-                .oauth2ResourceServer(oauth -> oauth.jwt(jwt -> jwt.decoder(decoder)
+                .oauth2ResourceServer(oauth -> oauth.bearerTokenResolver(request -> {
+                    if ("POST".equals(request.getMethod()) &&
+                            java.util.Set.of("/api/auth/login", "/api/auth/refresh", "/api/auth/logout").contains(request.getServletPath().isEmpty() ? request.getRequestURI().substring(request.getContextPath().length()) : request.getServletPath())) return null;
+                    return new org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver().resolve(request);
+                }).jwt(jwt -> jwt.decoder(decoder)
                         .jwtAuthenticationConverter(token -> new org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken(
                                 token, java.util.List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_" + token.getClaimAsString("role")))))))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.GET, "/actuator/health", "/api/auth/csrf").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/refresh").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
                         .anyRequest().denyAll())
                 .build();
