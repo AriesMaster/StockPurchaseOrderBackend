@@ -64,6 +64,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/employees", "/api/employees/*").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/employees").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/employees/*/role", "/api/employees/*/status").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/suppliers", "/api/suppliers/*").hasAnyRole("ADMIN", "PURCHASING_OFFICER", "APPROVER", "WAREHOUSE_OFFICER")
+                        .requestMatchers(HttpMethod.POST, "/api/suppliers").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/suppliers/*").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/suppliers/*/status").hasRole("ADMIN")
                         .anyRequest().denyAll())
                 .build();
         // Resource-server configuration exempts bearer requests by default.
