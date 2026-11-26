@@ -35,6 +35,13 @@ public class AuthController {
         return credentials(authentication.refresh(token));
     }
 
+    @GetMapping("/me")
+    public ResponseEntity<com.stockpurchaseorder.backend.auth.dto.AuthUser> me(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal org.springframework.security.oauth2.jwt.Jwt jwt) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+                .body(authentication.currentUser(Long.parseLong(jwt.getSubject())));
+    }
+
     private ResponseEntity<AuthResponse> credentials(AuthenticationService.Result result) {
         var cookie = ResponseCookie.from(COOKIE, result.refreshToken())
                 .httpOnly(true).secure(true).sameSite("Strict").path("/api/auth").build();
