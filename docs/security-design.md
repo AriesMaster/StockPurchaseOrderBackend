@@ -1,6 +1,10 @@
 # Authentication and authorization design
 
-Status: approved direction, implementation pending. StockFlow is an internal business system; no public self-registration.
+## Implementation checkpoint — 26 November 2026
+
+Implemented Argon2id credentials, JWT/session validation, refresh rotation, CSRF, login/logout/current-user endpoints, local administrator bootstrap and employee provisioning. Administrator creates employee accounts with initial passwords (invitation workflow remains proposed), changes operational roles/status and revokes affected sessions. Admin account protected from role/status modification. All active roles may read suppliers; only ADMIN can create, edit or change supplier status. Backend tests verify these permissions and CSRF rejection. Four local role accounts exist; public demo isolation, account protection and complete browser role checks remain pending. The remaining design below includes future hardening, not verified implementation.
+
+Original design baseline; see implementation checkpoint above. StockFlow is an internal business system; no public self-registration.
 
 ## Identity and permissions
 
