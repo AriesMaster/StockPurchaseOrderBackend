@@ -28,4 +28,16 @@ public class EmployeeController {
     public EmployeeResponse create(@Valid @RequestBody CreateEmployeeRequest request) {
         return employees.create(request);
     }
+    public record RoleRequest(@jakarta.validation.constraints.NotNull com.stockpurchaseorder.backend.auth.domain.Role role) {}
+    public record StatusRequest(@jakarta.validation.constraints.NotNull Boolean enabled) {}
+
+    @PatchMapping("/{id}/role")
+    public EmployeeResponse changeRole(@PathVariable long id, @Valid @RequestBody RoleRequest request) {
+        return employees.changeRole(id, request.role());
+    }
+
+    @PatchMapping("/{id}/status")
+    public EmployeeResponse changeStatus(@PathVariable long id, @Valid @RequestBody StatusRequest request) {
+        return employees.changeStatus(id, request.enabled());
+    }
 }
