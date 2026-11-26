@@ -4,7 +4,7 @@
 
 ## Purpose and scope
 
-Give a small business a record of what it ordered, what arrived, what is still outstanding, and how each delivery changed stock. The first release covers purchase order approval, partial and full receipts, stock balances, and stock movement history for a single location. Staff create orders and receive deliveries. An approver authorises orders before deliveries can be recorded. These are workflow roles. Authentication and permission rules are open design decisions.
+Give a small business a record of what it ordered, what arrived, what is still outstanding, and how each delivery changed stock. The first release covers purchase order approval, partial and full receipts, stock balances, and stock movement history for a single location. Staff create orders and receive deliveries. An approver authorises orders before deliveries can be recorded. These are workflow roles. Authentication and permissions follow the security design. Authentication foundations exist on feature branches.
 
 ## Architecture
 
@@ -58,6 +58,10 @@ stateDiagram-v2
 - [Database design and ERD](database-design.md) for PostgreSQL tables, relationships, and constraints.
 - [Angular frontend repository](https://github.com/AriesMaster/stock-purchase-order-frontend) for the user interface.
 
-## Authentication extension (planned)
+## Authentication extension (in development)
 
 Angular authenticates through Spring Security before accessing business endpoints. Four roles separate purchasing, approval, warehouse and administration. See [security design](security-design.md) for the authoritative permission and session model; this supersedes earlier open authentication decisions.
+
+## Cloud topology (deployed preview)
+
+Browser → Netlify Angular SPA → HTTPS API proxy → Render Docker Spring Boot → JDBC/TLS → Supabase PostgreSQL. Both hosting deployments are published and backend health is verified. Proxy and end-to-end business/authentication flows remain unverified. See [cloud deployment and operations](cloud-deployment.md).
