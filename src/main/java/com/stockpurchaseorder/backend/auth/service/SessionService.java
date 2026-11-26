@@ -81,6 +81,16 @@ public class SessionService {
                 .ifPresent(s -> s.revoke(Instant.now()));
     }
 
+    @Transactional
+    public void revokeByRefreshToken(String rawToken) {
+        String digest;
+        try { digest = generator.digest(rawToken); }
+        catch (IllegalArgumentException ex) { return; }
+        tokens.findById(digest)
+                .flatMap(token -> sessions.findForUpdate(token.getSessionId()))
+                .ifPresent(session -> session.revoke(Instant.now()));
+    }
+
     private Credentials issue(AuthSession session, AppUser user, Instant now) {
         String raw = generator.generate();
         em.persist(new RefreshToken(generator.digest(raw), session.getId(), now, session.getExpiresAt()));
