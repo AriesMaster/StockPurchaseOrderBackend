@@ -4,6 +4,9 @@ Java and Spring Boot REST API for purchase order approval, delivery recording an
 
 [Portfolio case study](https://thabo.netlify.app/stockflow.html)
 
+**Live development preview:** [Angular frontend](https://stockflow-management.netlify.app/) · [Backend health](https://stockflow-backend-5cke.onrender.com/actuator/health). Both hosting dashboards confirm deployment; backend health returned `UP` on 26 November 2026. The Netlify same-origin API proxy is configured; browser integration and end-to-end authentication remain unverified.
+
+
 **Status:** Active development. This is the authentication feature branch; the default-branch baseline is described below. `main` includes purchase order domain rules, typed exceptions and problem-detail mapping, the Product JPA entity and repository, and the Flyway V1 business schema. PostgreSQL connectivity and Actuator health have been verified locally. Business REST endpoints and transactional receipt processing are planned.
 
 ## Authentication progress
@@ -38,7 +41,7 @@ flowchart TD
  F[GitHub Actions: automated tests] -.-> A
 ```
 
-**Verification (26 November 2026):** Local Docker startup, Supabase connectivity, both Flyway migrations and Actuator health passed. Render's initial Maven build and image push succeeded; cloud startup and health are awaiting verification. The Angular Netlify deployment and same-origin API proxy are planned.
+**Verification (26 November 2026):** Local Docker startup, Supabase connectivity, both Flyway migrations and Actuator health passed. Render deployment succeeded and cloud health returned UP. Angular is published on Netlify with a configured same-origin API proxy; proxy verification remains pending.
 
 The cloud profile uses Render's PORT, disables public OpenAPI documentation and exposes the health endpoint at /actuator/health. Configure SPRING_PROFILES_ACTIVE=cloud, STOCKFLOW_DB_URL, STOCKFLOW_DB_USERNAME, STOCKFLOW_DB_PASSWORD and STOCKFLOW_JWT_SECRET_BASE64 in the hosting environment; never commit their secret values. Docker packaging skips tests; GitHub Actions runs verification separately. Local Docker Desktop uses WSL 2 on Windows.
 
@@ -155,7 +158,8 @@ See the API contract for payloads, error codes and replay semantics.
 - [ ] Angular integration
 - [x] Automated Java CI on `feature/auth-persistence`
 - [x] Local Docker runtime and Render image build on the authentication branch
-- [ ] Verify cloud startup and health; deploy Angular frontend
+- [x] Verify cloud startup and health; deploy Angular frontend
+- [ ] Verify deployed API proxy and browser authentication
 
 Authentication and permission rules are described in the [security design](docs/security-design.md). Do not commit database credentials or other secrets.
 
