@@ -1,6 +1,20 @@
 # Physical data flow diagram
 
-**Status.** Target Level 1 physical DFD for the first release. Angular public shell, Spring Boot runtime and PostgreSQL schema exist; the business data flows shown are not yet operational. It shows the implementation path for order approval, receipt processing, and inventory queries.
+## Implemented administration data flows
+
+```mermaid
+flowchart LR
+ A[Employee browser] -->|Login, CSRF, refresh| B[Spring Security and auth API]
+ A -->|Authorized employee or supplier requests| C[Spring MVC controllers]
+ B --> D[(PostgreSQL users and sessions)]
+ C --> E[Transactional services and JPA]
+ E --> F[(PostgreSQL employee and supplier records)]
+ C -->|JSON responses| A
+```
+
+Employee administration is ADMIN-only. Supplier reads are available to all active roles; writes are ADMIN-only. The supplier UI compiles but browser acceptance is pending. The original procurement DFD below remains a target.
+
+**Original design baseline.** See the implementation checkpoint above for current feature-branch status.
 
 ```mermaid
 flowchart TB
