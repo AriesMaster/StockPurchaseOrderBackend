@@ -17,10 +17,12 @@ import org.springframework.web.server.ResponseStatusException;
 public class EmployeeService {
     private final AppUserRepository users;
     private final PasswordEncoder passwords;
+    private final AuthSessionRepository sessions;
 
-    public EmployeeService(AppUserRepository users, PasswordEncoder passwords) {
+    public EmployeeService(AppUserRepository users, PasswordEncoder passwords, AuthSessionRepository sessions) {
         this.users = users;
         this.passwords = passwords;
+        this.sessions = sessions;
     }
 
     @Transactional(readOnly = true)
@@ -50,5 +52,34 @@ public class EmployeeService {
         } catch (DataIntegrityViolationException ex) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Account could not be created");
         }
+    }
+    @Transactional
+    public EmployeeResponse changeRole(long id, Role role) {
+        var user = mutableEmployee(id);
+        if (role == Role.ADMIN)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Administrator promotion is not supported");
+        if (user.getRole() != role) {
+            user.changeRole(role);
+            sessions.revokeAllForUser(id, java.time.Instant.now());
+        }
+        return EmployeeResponse.from(user);
+    }
+
+    @Transactional
+    public EmployeeResponse changeStatus(long id, boolean enabled) {
+        var user = mutableEmployee(id);
+        if (user.isEnabled() != enabled) {
+            user.setEnabled(enabled);
+            sessions.revokeAllForUser(id, java.time.Instant.now());
+        }
+        return EmployeeResponse.from(user);
+    }
+
+    private AppUser mutableEmployee(long id) {
+        var user = users.findById(id).orElseThrow(() ->
+                new ResponseStatusException(HttpStatus.NOT_FOUND, "Employee not found"));
+        if (user.getRole() == Role.ADMIN)
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Administrator account is protected");
+        return user;
     }
 }
