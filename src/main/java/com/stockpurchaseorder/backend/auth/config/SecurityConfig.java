@@ -61,6 +61,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/actuator/health", "/api/auth/csrf").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/employees", "/api/employees/*").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/employees").hasRole("ADMIN")
                         .anyRequest().denyAll())
                 .build();
     }
