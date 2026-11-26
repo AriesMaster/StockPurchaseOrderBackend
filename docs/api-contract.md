@@ -1,6 +1,20 @@
 # Spring Boot API contract
 
-**Status.** Proposed business endpoints and payloads for Angular integration. Global domain exception mapping is implemented and unit-tested; business controllers and HTTP contract tests are pending.
+## Implemented administration endpoints (feature branch)
+
+| Method and path | Access | Success |
+|---|---|---|
+| GET /api/employees and /api/employees/{id} | ADMIN | 200 |
+| POST /api/employees | ADMIN | 201 |
+| PATCH /api/employees/{id}/role or /status | ADMIN | 200 |
+| GET /api/suppliers and /api/suppliers/{id} | All active roles | 200 |
+| POST /api/suppliers | ADMIN | 201 |
+| PUT /api/suppliers/{id} | ADMIN | 200 |
+| PATCH /api/suppliers/{id}/status | ADMIN | 200 |
+
+Supplier request fields: name (required, max 150), contactName (150), email (valid email, 254), phone (30), address (500). Status request: { "active": false }. Response includes id, details, active, createdAt and updatedAt. List supports page, size (1–100), search (case-insensitive name), with content, number, size, totalElements and totalPages. Mutations require CSRF and bearer authorization. No hard delete. Missing supplier returns 404. Supplier backend integration tests passed; procurement contract below remains proposed.
+
+**Original design baseline.** See the implementation checkpoint above for current feature-branch status.
 
 ## Endpoints
 
