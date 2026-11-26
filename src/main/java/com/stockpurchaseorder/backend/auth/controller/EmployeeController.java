@@ -3,7 +3,7 @@ package com.stockpurchaseorder.backend.auth.controller;
 import com.stockpurchaseorder.backend.auth.dto.*;
 import com.stockpurchaseorder.backend.auth.service.EmployeeService;
 import jakarta.validation.Valid;
-import org.springframework.data.domain.Page;
+import com.stockpurchaseorder.backend.common.dto.PageResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,9 +15,9 @@ public class EmployeeController {
     public EmployeeController(EmployeeService employees) { this.employees = employees; }
 
     @GetMapping
-    public Page<EmployeeResponse> list(@RequestParam(defaultValue = "0") int page,
+    public PageResponse<EmployeeResponse> list(@RequestParam(defaultValue = "0") int page,
                                        @RequestParam(defaultValue = "20") int size) {
-        return employees.list(page, size);
+        return PageResponse.from(employees.list(page, size));
     }
 
     @GetMapping("/{id}")
