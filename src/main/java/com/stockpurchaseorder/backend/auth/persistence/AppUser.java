@@ -44,6 +44,14 @@ public class AppUser {
         return normalized;
     }
 
+    public void activate(String encodedPassword) {
+        if (enabled || passwordHash != null) throw new IllegalStateException("Account already activated");
+        if (encodedPassword == null || !encodedPassword.startsWith("$argon2id$"))
+            throw new IllegalArgumentException("Argon2id hash required");
+        passwordHash = encodedPassword;
+        enabled = true;
+    }
+
     public String getPasswordHash() { return passwordHash; }
 
     public Long getId() { return id; }
