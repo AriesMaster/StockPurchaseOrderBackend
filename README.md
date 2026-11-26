@@ -20,7 +20,7 @@ The [authentication feature branch](https://github.com/AriesMaster/StockPurchase
 | Validation | Jakarta Bean Validation | Installed |
 | API documentation | SpringDoc OpenAPI 3.0.3 | Installed |
 | Monitoring | Spring Boot Actuator | Installed |
-| Testing | JUnit, Spring Boot Test | 16 tests previously passed |
+| Testing | JUnit, Spring Boot Test | 38 tests passed in the 26 November local Maven build |
 | Persistence | Spring Data JPA, Hibernate, PostgreSQL | Product mapped on `main`; authentication mappings on the feature branch |
 | Migrations | Flyway | V1 applied and validated |
 
@@ -46,6 +46,10 @@ On Linux/macOS use `./mvnw` instead of `.\mvnw.cmd`.
 | http://localhost:8080/v3/api-docs | OpenAPI JSON |
 
 Actuator returned `{"groups":["liveness","readiness"],"status":"UP"}` on 24 November 2026. Swagger and OpenAPI browser responses have not been independently verified. Swagger will have no business operations until controllers are implemented.
+
+## Build and test verification
+
+On 26 November 2026, a local Windows Maven build reported 38 tests passed with zero failures, errors or skips, and reached JAR packaging. Run `.\mvnw.cmd clean verify` from PowerShell to reproduce the build and test run for your checkout.
 
 ## Current repository structure
 
@@ -104,7 +108,7 @@ See the API contract for payloads, error codes and replay semantics.
 - [x] Typed domain exceptions and problem-detail mapping
 - [x] PostgreSQL connection, Flyway V1, connection pool and local health verification
 - [x] Database RLS and history table hardening on the development database
-- [x] Product JPA entity and repository; 16 tests passed
+- [x] Product JPA entity and repository
 - [x] Authentication design
 - [x] User schema, credential verification and session services on `feature/auth-persistence`
 - [ ] Authentication HTTP endpoints and end-to-end sign-in
