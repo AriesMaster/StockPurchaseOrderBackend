@@ -8,7 +8,7 @@ Java and Spring Boot REST API for purchase order approval, delivery recording an
 
 ## Authentication progress
 
-The [authentication feature branch](https://github.com/AriesMaster/StockPurchaseOrderBackend/tree/feature/auth-persistence) adds the Flyway V2 authentication migration, user and session persistence, database-backed credential verification with Argon2id, signed JWT access tokens, and transactional refresh-token rotation. The [Java CI workflow passed](https://github.com/AriesMaster/StockPurchaseOrderBackend/actions/runs/45669864754) on that branch. Login, refresh, CSRF and current-user HTTP endpoints are implemented and verified. Logout is committed but awaiting local verification. Account provisioning and Angular integration remain pending.
+The [authentication feature branch](https://github.com/AriesMaster/StockPurchaseOrderBackend/tree/feature/auth-persistence) adds the Flyway V2 authentication migration, user and session persistence, database-backed credential verification with Argon2id, signed JWT access tokens, and transactional refresh-token rotation. The [Java CI workflow passed](https://github.com/AriesMaster/StockPurchaseOrderBackend/actions/runs/45669864754) on that branch. Login, refresh, CSRF and current-user HTTP endpoints are implemented and verified. Logout is implemented and locally verified. Initial administrator bootstrap code exists; account provisioning integration verification and Angular integration remain pending.
 
 ## System users and responsibilities
 
@@ -25,20 +25,22 @@ All active roles are intended to read orders, products, inventory and stock move
 
 Role definitions and authentication foundations exist on the feature branches; business permissions, account invitations and role-specific functional screens remain planned.
 
-## System users and responsibilities
+## Cloud deployment and containerization
 
-StockFlow is an internal procurement system for small hardware stores. It supports multiple employee accounts across four roles, with one role per account initially. Public self-registration is not planned; administrators will provision or invite employees.
+The authentication feature branch contains a multi-stage Dockerfile. The first stage uses Java 21 JDK and Maven Wrapper to package the Spring Boot executable JAR; the runtime stage uses Java 21 JRE and runs as a non-root user.
 
-| Role | Intended responsibilities |
-|---|---|
-| Administrator (`ADMIN`) | Manage accounts, roles, suppliers and products; oversee and perform authorized procurement operations. |
-| Purchasing Officer (`PURCHASING_OFFICER`) | Create draft purchase orders, submit for approval and cancel eligible orders. |
-| Approver (`APPROVER`) | Review and approve orders, and cancel eligible orders. |
-| Warehouse Officer (`WAREHOUSE_OFFICER`) | Record partial or complete deliveries and monitor inventory movements. |
+```mermaid
+flowchart TD
+ A[GitHub source and Dockerfile] --> B[Render build: Maven and JDK 21]
+ B --> C[Docker image: JRE 21 and executable JAR]
+ C --> D[Render container: Spring Boot REST API]
+ D --> E[Supabase PostgreSQL: JPA, Hibernate, Flyway]
+ F[GitHub Actions: automated tests] -.-> A
+```
 
-All active roles are intended to read orders, products, inventory and stock movements. Business rules apply even to administrators. The workflow is purchasing officer creates order → approver approves → warehouse officer receives goods → inventory is updated. Four demo accounts (one per role) are planned, not yet provisioned.
+**Verification (26 November 2026):** Local Docker startup, Supabase connectivity, both Flyway migrations and Actuator health passed. Render's initial Maven build and image push succeeded; cloud startup and health are awaiting verification. The Angular Netlify deployment and same-origin API proxy are planned.
 
-Role definitions and authentication foundations exist on the feature branches; business permissions, account invitations and role-specific functional screens remain planned.
+The cloud profile uses Render's PORT, disables public OpenAPI documentation and exposes the health endpoint at /actuator/health. Configure SPRING_PROFILES_ACTIVE=cloud, STOCKFLOW_DB_URL, STOCKFLOW_DB_USERNAME, STOCKFLOW_DB_PASSWORD and STOCKFLOW_JWT_SECRET_BASE64 in the hosting environment; never commit their secret values. Docker packaging skips tests; GitHub Actions runs verification separately. Local Docker Desktop uses WSL 2 on Windows.
 
 ## Technology
 
@@ -50,7 +52,7 @@ Role definitions and authentication foundations exist on the feature branches; b
 | Validation | Jakarta Bean Validation | Installed |
 | API documentation | SpringDoc OpenAPI 3.0.3 | Installed |
 | Monitoring | Spring Boot Actuator | Installed |
-| Testing | JUnit, Mockito, MockMvc, Testcontainers, Spring Boot Test | 54 tests passed in the 26 November local Maven build |
+| Testing | JUnit, Mockito, MockMvc, Testcontainers, Spring Boot Test | 62 tests passed in the 26 November local Maven build |
 | Persistence | Spring Data JPA, Hibernate, PostgreSQL | Product mapped on `main`; authentication mappings on the feature branch |
 | Migrations | Flyway | V1 applied and validated |
 
@@ -80,7 +82,7 @@ Actuator returned `{"groups":["liveness","readiness"],"status":"UP"}` on 24 Nove
 
 ## Build and test verification
 
-On 26 November 2026, a local Windows Maven build reported 54 tests passed with zero failures, errors or skips, and reached JAR packaging. Run `.\mvnw.cmd clean verify` from PowerShell to reproduce the build and test run for your checkout.
+On 26 November 2026, a local Windows Maven build reported 62 tests passed with zero failures, errors or skips, and reached JAR packaging. Run `.\mvnw.cmd clean verify` from PowerShell to reproduce the build and test run for your checkout.
 
 ## Current repository structure
 
@@ -143,7 +145,8 @@ See the API contract for payloads, error codes and replay semantics.
 - [x] Authentication design
 - [x] User schema, credential verification and session services on `feature/auth-persistence`
 - [x] Login, refresh, CSRF and current-user HTTP endpoints on the authentication branch
-- [ ] Verify logout, provision accounts and complete end-to-end sign-in
+- [x] Verify logout on the authentication branch
+- [ ] Provision accounts and complete end-to-end sign-in
 - [ ] Remaining JPA entities and repositories
 - [ ] Transactional receipt processing and idempotency
 - [ ] Business REST controllers and HTTP contract tests
@@ -151,7 +154,8 @@ See the API contract for payloads, error codes and replay semantics.
 - [ ] Business integration and concurrency tests
 - [ ] Angular integration
 - [x] Automated Java CI on `feature/auth-persistence`
-- [ ] Deployment
+- [x] Local Docker runtime and Render image build on the authentication branch
+- [ ] Verify cloud startup and health; deploy Angular frontend
 
 Authentication and permission rules are described in the [security design](docs/security-design.md). Do not commit database credentials or other secrets.
 
