@@ -399,6 +399,7 @@ class PostgresMigrationTest {
         String sku="PO-"+java.util.UUID.randomUUID();
         long supplierId=jdbc.queryForObject("insert into supplier(name) values ('Order test supplier') returning id",Long.class);
         jdbc.update("insert into product(sku,name,unit_price) values (?,?,?)",sku,"Test paint",new java.math.BigDecimal("115.00"));
+        jdbc.update("insert into supplier_product(supplier_id,sku,unit_price) values (?,?,?)",supplierId,sku,new java.math.BigDecimal("115.00"));
         var request=new com.stockpurchaseorder.backend.purchaseorder.dto.CreatePurchaseOrderRequest(supplierId,
             java.util.List.of(new com.stockpurchaseorder.backend.purchaseorder.dto.CreatePurchaseOrderRequest.Line(sku,2)));
         var response=purchaseOrders.create(request);

@@ -31,16 +31,21 @@ class PurchaseOrderApiIntegrationTest {
     @Autowired ProductRepository products;
     @Autowired SupplierRepository suppliers;
     @Autowired PurchaseOrderRepository orders;
+    @Autowired com.stockpurchaseorder.backend.supplier.catalogue.SupplierCatalogueService catalogue;
+    @Autowired com.stockpurchaseorder.backend.supplier.catalogue.SupplierProductRepository offers;
     private final ObjectMapper json=new ObjectMapper();
     private long supplierId;
 
     @BeforeEach void seed(){
         orders.deleteAll();
+        offers.deleteAll();
         products.deleteAll();
         suppliers.deleteAll();
         supplierId=suppliers.saveAndFlush(new SupplierEntity("Hardware",null,null,null,null)).getId();
         products.saveAndFlush(new ProductEntity("PAINT","White paint",new BigDecimal("115.00")));
         products.saveAndFlush(new ProductEntity("NAILS","Nails",new BigDecimal("25.50")));
+        catalogue.put(supplierId,"PAINT",new BigDecimal("115.00"),true);
+        catalogue.put(supplierId,"NAILS",new BigDecimal("25.50"),true);
         for(Role role:Role.values()){
             if(!users.existsByEmail(email(role))){
                 var user=new AppUser(email(role),role);
@@ -139,5 +144,26 @@ class PurchaseOrderApiIntegrationTest {
         mvc.perform(get("/api/purchase-orders").param("size","1").param("page","1").header("Authorization","Bearer "+token))
             .andExpect(status().isOk()).andExpect(jsonPath("$.content[0].id").value(first));
         mvc.perform(get("/api/purchase-orders/99999999").header("Authorization","Bearer "+token)).andExpect(status().isNotFound());
+    }
+    @Test void supplierSpecificPricesAndAvailabilityAreEnforced() throws Exception {
+        String token=login(Role.ADMIN);
+        catalogue.put(supplierId,"PAINT",new BigDecimal("100.00"),true);
+        long other=suppliers.saveAndFlush(new SupplierEntity("Other",null,null,null,null)).getId();
+        mvc.perform(createRequest(token,valid().replace("\"supplierId\":"+supplierId,"\"supplierId\":"+other))).andExpect(status().is(422));
+        mvc.perform(createRequest(token,valid())).andExpect(status().isCreated()).andExpect(jsonPath("$.total").value(276.5));
+        catalogue.put(supplierId,"PAINT",new BigDecimal("150.00"),false);
+        mvc.perform(createRequest(token,valid())).andExpect(status().isConflict());
+        assertEquals(1,orders.count());
+    }
+    @Test void catalogueReadAndAdminWritePermissions() throws Exception {
+        String path="/api/suppliers/"+supplierId+"/products";
+        String admin=login(Role.ADMIN), buyer=login(Role.PURCHASING_OFFICER);
+        var c=csrf();
+        mvc.perform(put(path+"/PAINT").cookie(c).header("X-XSRF-TOKEN",c.getValue()).header("Authorization","Bearer "+buyer)
+            .contentType("application/json").content("{\"unitPrice\":100,\"active\":false}")).andExpect(status().isForbidden());
+        mvc.perform(put(path+"/PAINT").cookie(c).header("X-XSRF-TOKEN",c.getValue()).header("Authorization","Bearer "+admin)
+            .contentType("application/json").content("{\"unitPrice\":100,\"active\":false}")).andExpect(status().isOk());
+        mvc.perform(get(path).header("Authorization","Bearer "+buyer)).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1));
+        mvc.perform(get(path).param("available","false").header("Authorization","Bearer "+admin)).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(2));
     }
 }

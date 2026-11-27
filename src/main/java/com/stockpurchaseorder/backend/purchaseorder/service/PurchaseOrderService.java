@@ -18,8 +18,10 @@ public class PurchaseOrderService {
     private final PurchaseOrderRepository orders;
     private final SupplierRepository suppliers;
     private final ProductRepository products;
-    public PurchaseOrderService(PurchaseOrderRepository orders, SupplierRepository suppliers, ProductRepository products) {
-        this.orders=orders;this.suppliers=suppliers;this.products=products;
+    private final com.stockpurchaseorder.backend.supplier.catalogue.SupplierProductRepository catalogue;
+    public PurchaseOrderService(PurchaseOrderRepository orders, SupplierRepository suppliers, ProductRepository products,
+        com.stockpurchaseorder.backend.supplier.catalogue.SupplierProductRepository catalogue) {
+        this.orders=orders;this.suppliers=suppliers;this.products=products;this.catalogue=catalogue;
     }
 
     @Transactional
@@ -36,7 +38,10 @@ public class PurchaseOrderService {
             var product=products.lockForPurchase(line.getSku()).orElseThrow(() ->
                 new ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT,"Unknown SKU: "+line.getSku()));
             if(!product.isActive()) throw new ResponseStatusException(HttpStatus.CONFLICT,"Inactive SKU: "+line.getSku());
-            snapshots.put(line.getSku(),new OrderLineSnapshot(product.getName(),line.getOrderedQuantity(),product.getUnitPrice()));
+            var offer=catalogue.findBySupplier_IdAndProduct_Sku(supplier.getId(),line.getSku()).orElseThrow(() ->
+                new ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT,"SKU is not supplied by the selected supplier: "+line.getSku()));
+            if(!offer.isActive())throw new ResponseStatusException(HttpStatus.CONFLICT,"Supplier offer is inactive: "+line.getSku());
+            snapshots.put(line.getSku(),new OrderLineSnapshot(product.getName(),line.getOrderedQuantity(),offer.getUnitPrice()));
         }
         return PurchaseOrderResponse.from(orders.saveAndFlush(new PurchaseOrderEntity(supplier,snapshots)));
     }
