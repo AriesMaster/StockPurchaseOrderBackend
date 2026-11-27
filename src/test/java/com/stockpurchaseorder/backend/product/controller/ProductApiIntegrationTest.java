@@ -120,4 +120,14 @@ class ProductApiIntegrationTest {
     @Test void missingProductReturnsNotFound() throws Exception {
         mvc.perform(get("/api/products/MISSING").header("Authorization","Bearer "+login(Role.ADMIN))).andExpect(status().isNotFound());
     }
+    @Test void filtersStatusBeforePaginationAndCombinesWithNameOrSku() throws Exception {
+        String token=login(Role.ADMIN);
+        create(token);
+        mvc.perform(write(post("/api/products"),token,"{\"sku\":\"PAINT-5L\",\"name\":\"Small tin\",\"unitPrice\":50}")).andExpect(status().isCreated());
+        mvc.perform(write(patch("/api/products/PAINT-20L/status"),token,"{\"active\":false}")).andExpect(status().isOk());
+        mvc.perform(get("/api/products").param("active","true").param("search","paint").param("size","1").header("Authorization","Bearer "+token))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1)).andExpect(jsonPath("$.content[0].sku").value("PAINT-5L"));
+        mvc.perform(get("/api/products").param("active","false").param("search","white").header("Authorization","Bearer "+token))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1)).andExpect(jsonPath("$.content[0].sku").value("PAINT-20L"));
+    }
 }

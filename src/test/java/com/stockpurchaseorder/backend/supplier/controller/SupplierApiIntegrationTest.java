@@ -101,4 +101,14 @@ class SupplierApiIntegrationTest {
     @Test void missingSupplierReturnsNotFound() throws Exception {
         mvc.perform(get("/api/suppliers/999999").header("Authorization","Bearer "+login(Role.ADMIN))).andExpect(status().isNotFound());
     }
+    @Test void filtersStatusBeforePaginationAndCombinesWithSearch() throws Exception {
+        String token=login(Role.ADMIN);
+        long id=create(token);
+        mvc.perform(write(post("/api/suppliers"),token,"{\"name\":\"Hardware Outlet\"}")).andExpect(status().isCreated());
+        mvc.perform(write(patch("/api/suppliers/"+id+"/status"),token,"{\"active\":false}")).andExpect(status().isOk());
+        mvc.perform(get("/api/suppliers").param("active","false").param("search","hardware").param("size","1").header("Authorization","Bearer "+token))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1)).andExpect(jsonPath("$.content[0].active").value(false));
+        mvc.perform(get("/api/suppliers").param("active","true").param("search","hardware").header("Authorization","Bearer "+token))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1)).andExpect(jsonPath("$.content[0].name").value("Hardware Outlet"));
+    }
 }
