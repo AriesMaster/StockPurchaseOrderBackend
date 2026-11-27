@@ -14,8 +14,8 @@ public class SupplierController {
     public SupplierController(SupplierService suppliers) { this.suppliers = suppliers; }
     @GetMapping
     public PageResponse<SupplierResponse> list(@RequestParam(defaultValue="0") int page,
-        @RequestParam(defaultValue="20") int size, @RequestParam(required=false) String search) {
-        return PageResponse.from(suppliers.list(page, size, search));
+        @RequestParam(defaultValue="20") int size, @RequestParam(required=false) String search, @RequestParam(required=false) Boolean active) {
+        return PageResponse.from(suppliers.list(page, size, search, active));
     }
     @GetMapping("/{id}")
     public SupplierResponse get(@PathVariable long id) { return suppliers.get(id); }

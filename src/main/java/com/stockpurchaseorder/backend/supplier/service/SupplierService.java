@@ -14,9 +14,18 @@ public class SupplierService {
 
     @Transactional(readOnly=true)
     public Page<SupplierResponse> list(int page, int size, String search) {
+        return list(page, size, search, null);
+    }
+
+    @Transactional(readOnly=true)
+    public Page<SupplierResponse> list(int page, int size, String search, Boolean active) {
         if (page < 0 || size < 1 || size > 100 || (search != null && search.length() > 150))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid pagination or search");
         var pageable = PageRequest.of(page, size, Sort.by("name", "id"));
+        if (active != null) {
+            return (search == null || search.isBlank() ? suppliers.findByActive(active, pageable)
+                : suppliers.findByActiveAndNameContainingIgnoreCase(active, search.strip(), pageable)).map(SupplierResponse::from);
+        }
         return (search == null || search.isBlank() ? suppliers.findAll(pageable)
             : suppliers.findByNameContainingIgnoreCase(search.strip(), pageable)).map(SupplierResponse::from);
     }

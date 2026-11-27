@@ -18,9 +18,18 @@ public class ProductService {
 
     @Transactional(readOnly = true)
     public Page<ProductResponse> list(int page, int size, String search) {
+        return list(page, size, search, null);
+    }
+
+    @Transactional(readOnly=true)
+    public Page<ProductResponse> list(int page, int size, String search, Boolean active) {
         if (page < 0 || size < 1 || size > 100 || (search != null && search.length() > 150))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid pagination or search");
         var pageable = PageRequest.of(page, size, Sort.by("name", "sku"));
+        if (active != null) {
+            return (search == null || search.isBlank() ? products.findByActive(active, pageable)
+                : products.findByActiveAndNameContainingIgnoreCaseOrActiveAndSkuContainingIgnoreCase(active, search.strip(), active, search.strip(), pageable)).map(ProductResponse::from);
+        }
         return (search == null || search.isBlank() ? products.findAll(pageable) :
             products.findByNameContainingIgnoreCaseOrSkuContainingIgnoreCase(search.strip(), search.strip(), pageable))
             .map(ProductResponse::from);

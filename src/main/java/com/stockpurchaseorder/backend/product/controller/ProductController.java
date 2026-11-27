@@ -16,8 +16,8 @@ public class ProductController {
 
     @GetMapping
     public PageResponse<ProductResponse> list(@RequestParam(defaultValue="0") int page,
-        @RequestParam(defaultValue="20") int size, @RequestParam(required=false) String search) {
-        return PageResponse.from(products.list(page, size, search));
+        @RequestParam(defaultValue="20") int size, @RequestParam(required=false) String search, @RequestParam(required=false) Boolean active) {
+        return PageResponse.from(products.list(page, size, search, active));
     }
 
     @GetMapping("/{sku}")
