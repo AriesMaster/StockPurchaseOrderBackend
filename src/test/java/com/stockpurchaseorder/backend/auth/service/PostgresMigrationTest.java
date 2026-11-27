@@ -392,4 +392,21 @@ class PostgresMigrationTest {
         assertTrue(revoked(first.sessionId()));
         assertTrue(sessions.rotate(second.refreshToken()).isEmpty());
     }
+    @Autowired com.stockpurchaseorder.backend.purchaseorder.service.PurchaseOrderService purchaseOrders;
+
+    @Test
+    void createsDraftAgainstMigratedPostgresSchemaWithPriceSnapshot() {
+        String sku="PO-"+java.util.UUID.randomUUID();
+        long supplierId=jdbc.queryForObject("insert into supplier(name) values ('Order test supplier') returning id",Long.class);
+        jdbc.update("insert into product(sku,name,unit_price) values (?,?,?)",sku,"Test paint",new java.math.BigDecimal("115.00"));
+        var request=new com.stockpurchaseorder.backend.purchaseorder.dto.CreatePurchaseOrderRequest(supplierId,
+            java.util.List.of(new com.stockpurchaseorder.backend.purchaseorder.dto.CreatePurchaseOrderRequest.Line(sku,2)));
+        var response=purchaseOrders.create(request);
+        assertEquals(new java.math.BigDecimal("230.00"),response.total());
+        assertEquals(supplierId,jdbc.queryForObject("select supplier_id from purchase_order where id=?",Long.class,response.id()));
+        assertEquals(new java.math.BigDecimal("115.00"),jdbc.queryForObject(
+            "select unit_price from purchase_order_line where purchase_order_id=? and sku=?",java.math.BigDecimal.class,response.id(),sku));
+        jdbc.update("update product set unit_price=130.00 where sku=?",sku);
+        assertEquals(new java.math.BigDecimal("230.00"),purchaseOrders.get(response.id()).total());
+    }
 }
