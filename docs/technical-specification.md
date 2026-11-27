@@ -1,69 +1,74 @@
 # Backend technical specification
 
-## Implementation checkpoint — 26 November 2026
+## Implementation checkpoint — 27 November 2026
 
-Authentication and employee administration APIs are implemented; supplier DTOs, validation, transactional service, repository, controller and role authorization are implemented and tested. Supplier changes use soft deactivation, not deletion. Concurrent supplier writes and order linkage remain outstanding. Local Maven verification passed 98 tests; Angular build and 66 existing tests passed. Procurement services and endpoints below remain planned.
+Current feature-branch functionality includes Spring Security authentication/session endpoints, employee administration, supplier and product directories with status changes, supplier-product catalogue management, and purchase-order draft creation/list/detail APIs. Order creation validates the supplier's active product offers and persists product-name and unit-price snapshots.
 
-**Original design baseline.** See the implementation checkpoint above for current feature-branch status.
+Local Maven verification passed 122 tests and packaged the JAR on 27 November 2026. Flyway V1–V6 validated against the development PostgreSQL database.
+
+Approval and cancellation endpoints, delivery receipt transactions, inventory updates, stock-movement APIs and full cloud-browser verification remain future work.
 
 ## Purpose and scope
 
-The system lets a small business record what it ordered, approve the purchase, receive deliveries in stages, and review how each receipt changed stock. The first release tracks quantities by SKU at a single stock location.
+StockFlow helps a small hardware store prepare supplier orders and keep a record of purchasing work. The current application manages supplier/product records and prices, then saves and reads draft orders. The target system will also approve orders, record staged deliveries and track on-hand stock.
 
-## Purchase order rules
+## Implemented behavior
 
-| Action | Preconditions | Result |
-|---|---|---|
-| Create | One or more lines with unique SKUs and positive whole quantities | Draft order |
-| Approve | Draft order with at least one line | Approved order |
-| Receive | Approved or partially received order. Each receipt quantity must be positive and at most the outstanding quantity for that SKU. | Partially received while any quantity remains. Received when every line is complete. |
-| Cancel | Draft or approved order | Cancelled order |
+| Area | Current behavior |
+|---|---|
+| Product catalogue | Administrators create/update products and change active status. All active roles can search and read products. |
+| Supplier management | Administrators create/update/deactivate suppliers; active roles can read/search them. |
+| Supplier catalogue | Administrators assign a product to a supplier and set that supplier's unit price/status. Active roles can view offers. |
+| Draft purchase orders | Admin/purchasing officer creates an order for one active supplier with one or more active offered SKUs and positive quantities. |
+| Order read | All active roles can list/filter by status and view order details. |
+| Price history | Order lines retain product name and supplier unit price at creation. |
 
-An approved order cannot have its ordered quantities changed. A cancelled or fully received order cannot accept a delivery. A partially received order cannot be cancelled. For an order of 20 units, receiving 12 leaves 8 outstanding. A later request for 9 fails without changing stock.
+## Target order lifecycle
+
+The domain model and database include statuses DRAFT, APPROVED, PARTIALLY_RECEIVED, RECEIVED and CANCELLED. The current HTTP API creates and reads drafts. Approval, cancellation and receiving transitions are not exposed through REST endpoints yet.
+
+| Stage | Target rule |
+|---|---|
+| Create | One or more unique SKU lines with positive whole-number quantities; every SKU must be actively offered by the selected supplier. Result: DRAFT. |
+| Approve | Only an eligible draft can be approved. |
+| Receive | Approved/partially received order only; each quantity is positive and cannot exceed outstanding quantity. |
+| Cancel | Only an eligible order that has not begun receiving can be cancelled. |
 
 ## Backend responsibilities
 
 | Component | Responsibility |
 |---|---|
-| Spring Boot controllers | Validate request structure, invoke application services, and return JSON response DTOs. |
-| `PurchaseOrder` and `PurchaseOrderLine` | Own status transitions and quantity rules. The order contains its lines and exposes actions such as `approve()` and `receive(...)`. |
-| Receipt service | Coordinates the order, receipt, stock movement, and inventory balance in one transaction. |
-| Spring Data JPA and Hibernate | Load and persist data in PostgreSQL. |
+| Spring Security | Validate JWT/session and enforce endpoint role rules; require CSRF for unsafe methods. |
+| Product, supplier and catalogue controllers/services | Validate and persist master data and supplier offers. |
+| Purchase-order controller/service | Validate create/list/detail requests and save a draft with immutable name/price snapshots. |
+| Domain model | Enforce status and quantity rules; only draft creation is connected to the current order REST API. |
+| JPA/Hibernate and Flyway | Map current entities and apply versioned PostgreSQL schema migrations. |
+| Receipt/inventory services | Planned: coordinate receipt, order quantities, stock balance and movements atomically. |
 
 ## Logical data model
 
-See the [database design and ERD](database-design.md) for relationships and PostgreSQL constraints.
+See [database design and ERD](database-design.md). `ProductEntity` and `SupplierEntity` hold master records. `SupplierProduct` holds each offer. `PurchaseOrderEntity` contains `OrderLineSnapshot` values keyed by SKU. The Java `PurchaseOrder` domain model checks the order-line rules.
 
-| Record | Main fields and constraints |
-|---|---|
-| Product | SKU, name. SKU is unique. |
-| Purchase order | ID, status, created timestamp. |
-| Purchase order line | Order ID, SKU, ordered quantity, received quantity. A SKU appears once per order. Received quantity stays between zero and ordered quantity. |
-| Receipt | ID, order ID, idempotency key, canonical request fingerprint, and recorded timestamp. The order ID and idempotency key are unique together. |
-| Receipt line | Receipt ID, SKU, received quantity. A SKU appears once per receipt. |
-| Inventory balance | SKU and quantity on hand. One balance per SKU. |
-| Stock movement | ID, receipt ID, SKU, positive change in quantity, and recorded timestamp. Each receipt line produces one movement. |
+The initial database schema also defines receipt, receipt-line, inventory-balance and stock-movement tables. The current application does not yet create receipts or update stock.
 
-## Receipt transaction
+## Draft creation transaction
 
-1. Lock the purchase order row and check for an existing receipt with the supplied idempotency key. Return the stored receipt for an equivalent request. Reject a different request with the same key.
-2. Validate all receipt lines against the current order. Lock affected inventory balances in SKU order so receipts for different orders can safely update shared inventory.
-3. Save the receipt and its lines, update received quantities and stock balances, and append movements. Commit together. Roll back all writes if any part fails.
+1. The controller validates the supplier ID, line count and individual quantities. The service constructs a `PurchaseOrder` to check unique SKUs and the domain rules.
+2. Inside one transaction, the service locks the selected supplier and checks that it is active.
+3. It processes SKUs in stable order, loads the active products and looks up their active offers for that supplier.
+4. It writes a draft with the product name and supplier price on each line, then returns the order details and calculates totals from the saved prices.
 
-Provision the inventory balance when creating a product. Use a database uniqueness constraint for receipt keys as a backstop. Store receipt response data needed for replay so a retry can return the original receipt even after a later delivery changes the order.
+The request contains only the supplier ID, SKUs and quantities. Price lookup happens on the server.
 
-## Implemented infrastructure
+## Future receipt transaction design
 
-Spring Boot 4.0.10 targets Java 21. Hibernate validates rather than creates the schema; Flyway manages application migrations. HikariCP uses a maximum pool size of three and minimum idle of one. Local tests use H2 with Flyway disabled. The latest reported test run passed 16 tests; the subsequent PostgreSQL startup and Actuator health check succeeded. See [database operations](database-operations.md).
+When receipt support is added, the service should lock the order and affected inventory rows, check outstanding quantities and an idempotency key, then save receipt lines, update order quantities and inventory, and append stock movements inside one PostgreSQL transaction. Lock affected inventory rows in SKU order. Compare the saved request fingerprint on a retry and return the original receipt for matching quantities. A failure must roll back all writes. This is not implemented or verified in the current feature branch.
 
 ## Verification
 
-- JUnit domain tests cover approval, partial and complete delivery, over-delivery, and cancellation after receiving stock.
-- Planned PostgreSQL integration tests cover duplicate submissions, concurrent receipts against the same order, concurrent receipts affecting the same SKU across orders, and full rollback on failure.
-- Planned HTTP contract tests cover validation, status codes, and replay behaviour.
+- Backend: 122 tests passed, no failures/errors/skips; Maven verification and JAR packaging succeeded on 27 November 2026.
+- Frontend: production build succeeded and 123 Vitest tests passed on 27 November 2026.
+- Database: Flyway V1–V6 applied/validated against the development PostgreSQL database.
+- Cloud: Render health and Netlify CSRF-proxy response verified on 26 November; newest business workflows need cloud verification.
 
-[API contract](api-contract.md)
-
-## Security extension (planned)
-
-Implement Spring Security, Argon2id, JWT access tokens and rotating opaque refresh tokens before exposing business endpoints. See [security design](security-design.md) for parameters, account lifecycle, authorization and tests. Product entity and repository startup validation succeeded; latest backend test run: 16 passed.
+See [API contract](api-contract.md) and [database operations](database-operations.md).
