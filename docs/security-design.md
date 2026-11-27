@@ -1,29 +1,43 @@
 # Authentication and authorization design
 
-Status: approved direction, implementation pending. StockFlow is an internal business system; no public self-registration.
+This guide describes StockFlow on [`feature/auth-persistence`](https://github.com/AriesMaster/StockPurchaseOrderBackend/blob/feature/auth-persistence/docs/security-design.md). For the original `main` code and design, see the [baseline version](https://github.com/AriesMaster/StockPurchaseOrderBackend/blob/46754bb0c9ab96d6708aa9bb2e3341d6729a8c17/docs/security-design.md).
+
+## Implementation checkpoint — 27 November 2026
+
+The active backend branch implements Argon2id credential hashing, signed JWT access tokens validated against persisted sessions, rotating refresh tokens, CSRF protection, login/logout/current-user endpoints, administrator bootstrap and employee provisioning. Administrators can change operational employees’ roles and status. The service revokes affected sessions and protects administrator accounts from role and status changes. Invitation acceptance, password reset, rate limiting, audit logging and public demo isolation are not currently implemented.
+
+Backend tests cover credential/session behavior, CSRF and role restrictions. The local 27 November Maven verification passed 122 tests. Cloud login and full browser role workflows still need verification.
 
 ## Identity and permissions
 
-One role per account initially. ADMIN manages users and products and can perform business operations. PURCHASING_OFFICER creates and cancels eligible orders; APPROVER approves and cancels eligible orders; WAREHOUSE_OFFICER records deliveries. All active roles may read orders, products, inventory and movements. Domain state rules apply even to administrators. Server-side authorization is authoritative; Angular guards are for navigation only.
+One role is assigned per account initially. Server-side authorization is authoritative; Angular guards only control navigation.
+
+| Role | Current API permissions |
+|---|---|
+| ADMIN | Read/manage employees; read/write suppliers, products and supplier catalogues; read and create purchase orders. |
+| PURCHASING_OFFICER | Read suppliers, products, offers and orders; create purchase orders. |
+| APPROVER | Read suppliers, products, offers and orders. Approval endpoints are planned. |
+| WAREHOUSE_OFFICER | Read suppliers, products, offers and orders. Receipt/inventory endpoints are planned. |
+
+All active roles can read supplier, product, catalogue and purchase-order data. Employee management and catalogue writes are restricted to ADMIN. Business state rules will remain authoritative even for admins.
 
 ## Passwords and sessions
 
-Use Spring Security with Argon2id, never BCrypt. Start with 19 MiB memory, 2 iterations, parallelism 1, random 16-byte salt and 32-byte hash; benchmark on deployment hardware. Store encoded hashes only. Rate-limit authentication by account and source; use generic invalid-credentials responses. Admin creates accounts through a single-use invitation; bootstrap the first admin through an explicit one-time operator command, no default credentials.
+Spring Security uses Argon2id with a 16-byte salt, 32-byte output, parallelism 1, 19 MiB memory and 2 iterations. Stored values are encoded hashes. Employee creation requires an initial password; no default public account is provided.
 
-Signed JWT access tokens expire after 15 minutes. Validate signature, issuer, audience and expiry; pin signing algorithm and keep keys outside Git. Include subject, session ID and role; check active account, session and current role on protected requests so deactivation, logout and role changes take effect immediately. Use opaque random refresh tokens, store only SHA-256 digests, rotate atomically, revoke session on reuse. Absolute session lifetime 7 days. Angular keeps access token in memory; refresh token in Secure HttpOnly SameSite cookie. Prefer same-origin deployment/proxy; protect cookie-authenticated endpoints with CSRF checks and origin validation. Never store tokens in localStorage or log them.
+Signed JWT access tokens expire after 15 minutes and sessions last up to seven days. The access tokens identify the account, session and role. Protected requests validate session/account state so logout, deactivation and role changes take effect. Refresh tokens are random, stored as SHA-256 digests and rotated under a session lock. Reuse revokes the session. The refresh cookie is Secure, HttpOnly and SameSite; Angular keeps access tokens in memory. Unsafe requests require a CSRF cookie/header pair.
 
-Password reset uses short-lived single-use random tokens, stored as digests, delivered by email; generic response regardless of account existence. Reset revokes all sessions. Audit user management, authentication events and business actions without secrets. TLS required outside local development.
+The login endpoint returns a generic response for invalid credentials. Rate limiting, invitation and password-reset flows, audit logging and isolated demo access are planned.
 
-## Planned schema
+## Implemented authentication schema
 
-app_user: identity bigint ID, normalized unique email, password_hash (nullable until invitation accepted), role constrained to four values, enabled flag, created_at.
-auth_session: UUID ID, user FK, expiry and revoked_at.
-refresh_token: digest PK, session FK, expiry and consumed_at; retain consumed records until session expiry for replay detection.
-account_token: digest PK, user FK, purpose (INVITE or RESET), expiry and consumed_at.
-Use Flyway V2 and later migrations, RLS and revoked direct client grants on new tables. Never alter Flyway history inside a migration.
+Flyway V2 creates app_user, auth_session, refresh_token and account_token with role constraints and expiry/consumption fields. The schema supports invitation/reset tokens, but those flows are not exposed yet. Row-level security is enabled and direct access is revoked from Supabase client roles.
 
-## Verification
+## Verification and remaining hardening
 
-Test correct/incorrect passwords, unique salts, invalid/expired JWTs, role restrictions, disabled users, session revocation, refresh replay/concurrency, reset expiry and single use, CSRF and generic error responses. Use isolated test databases, never destructive tests against development Supabase.
+- 122 backend tests passed locally on 27 November 2026.
+- CSRF behavior and API role restrictions are covered by backend tests.
+- Employee/session behavior has local UI/API verification.
+- Secure public demo access and cloud browser login/refresh/logout verification remain pending.
 
-Implement in stages: schema and user mapping, password encoder, login and access-token validation, refresh/logout, invitation/reset, authorization and audit tests, Angular integration. No authentication endpoints are implemented yet.
+See [API contract](api-contract.md) and [cloud deployment](cloud-deployment.md).

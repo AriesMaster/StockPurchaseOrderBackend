@@ -1,56 +1,65 @@
 # Database design
 
-**Status.** Implemented initial PostgreSQL schema for the first release. The system tracks whole-unit quantities at one stock location.
+This guide describes StockFlow on [`feature/auth-persistence`](https://github.com/AriesMaster/StockPurchaseOrderBackend/blob/feature/auth-persistence/docs/database-design.md). For the original `main` code and design, see the [baseline version](https://github.com/AriesMaster/StockPurchaseOrderBackend/blob/46754bb0c9ab96d6708aa9bb2e3341d6729a8c17/docs/database-design.md).
+
+## Applied schema migrations
+
+Flyway V1–V6 define the current development schema. The migrations have been applied and validated against the development PostgreSQL database.
+
+| Version | Schema change |
+|---|---|
+| V1 | Initial product, purchase-order, receipt and inventory schema. |
+| V2 | app_user, auth_session, refresh_token and account_token authentication tables, role checks, RLS and revoked direct Supabase client grants. |
+| V3 | Supplier table. |
+| V4 | Product base price, active flag and optimistic-lock version. |
+| V5 | Supplier reference on purchase orders and product-name/unit-price snapshots on order lines. |
+| V6 | Supplier-to-product catalogue with supplier-specific unit price and active flag. |
+
+Applied migration files are immutable; future schema changes need a new Flyway migration.
 
 ## Entity relationship diagram
 
 ```mermaid
 erDiagram
-    direction TB
+    SUPPLIER ||--o{ PURCHASE_ORDER : supplies
+    SUPPLIER ||--o{ SUPPLIER_PRODUCT : offers
+    PRODUCT ||--o{ SUPPLIER_PRODUCT : appears_in
     PURCHASE_ORDER ||--|{ PURCHASE_ORDER_LINE : contains
     PRODUCT ||--o{ PURCHASE_ORDER_LINE : ordered_as
     PURCHASE_ORDER ||--o{ RECEIPT : receives
     RECEIPT ||--|{ RECEIPT_LINE : contains
     PURCHASE_ORDER_LINE ||--o{ RECEIPT_LINE : fulfilled_by
-    PRODUCT ||--|| INVENTORY_BALANCE : has
-    RECEIPT_LINE ||--|| STOCK_MOVEMENT : produces
+    PRODUCT ||--o| INVENTORY_BALANCE : may_have
+    RECEIPT_LINE ||--o| STOCK_MOVEMENT : may_produce
 ```
 
-A purchase order line can be fulfilled by several deliveries. Every receipt line produces one stock movement. The product for a movement is identified through its receipt line.
+The product and supplier tables are current master data. supplier_product connects a supplier to each product it offers and stores that supplier's current price. Order lines keep name/price snapshots so a later catalogue edit does not rewrite historical orders. Receipt and inventory tables are defined in the initial schema, but receipt/inventory application workflows are not implemented yet.
 
-## Tables and keys
+## Current tables
 
-| Table | Primary key | Other columns and constraints |
+| Table | Key | Current fields and constraints |
 |---|---|---|
-| `product` | `sku` | `name` |
-| `purchase_order` | `id` | `status`, `created_at`. Status is one of `DRAFT`, `APPROVED`, `PARTIALLY_RECEIVED`, `RECEIVED`, or `CANCELLED`. |
-| `purchase_order_line` | `(purchase_order_id, sku)` | Both key columns are foreign keys. `ordered_quantity > 0` and `0 <= received_quantity <= ordered_quantity`. |
-| `receipt` | `id` | `purchase_order_id` references the order. Store `idempotency_key`, `request_fingerprint`, `recorded_at`, and `order_status_after`. Enforce uniqueness on `(purchase_order_id, idempotency_key)` and on `(id, purchase_order_id)` for the composite foreign key below. |
-| `receipt_line` | `(receipt_id, sku)` | `(receipt_id, purchase_order_id)` references the receipt. `(purchase_order_id, sku)` references the order line. This keeps every line on the same order as its receipt. Store `quantity > 0` and `outstanding_quantity_after >= 0`. |
-| `inventory_balance` | `sku` | SKU references the product. `quantity_on_hand >= 0`. Create the balance with the product and initialise it to zero. |
-| `stock_movement` | `id` | `(receipt_id, sku)` is a unique foreign key to the receipt line, so a line can generate only one movement. Store `quantity_change > 0` and `recorded_at`. |
+| product | sku | Name, base unit_price, active, optimistic-lock version. SKU is the stable stock-keeping identifier. |
+| supplier | id | Name, optional contact name/email/phone/address, active flag and timestamps. |
+| supplier_product | id; unique (supplier_id, sku) | Foreign keys to supplier and product, supplier unit_price >= 0, active flag. |
+| purchase_order | id | Supplier FK, status and created timestamp. |
+| purchase_order_line | (purchase_order_id, sku) | Ordered/received quantities, product-name and supplier-price snapshots; positive ordered quantity and nonnegative outstanding quantity. |
+| receipt | id | References a purchase order and stores the idempotency key, request fingerprint, receipt time and status after receipt. `(purchase_order_id, idempotency_key)` is unique. |
+| receipt_line | (receipt_id, sku) | Foreign keys link the receipt and order line on the same order. Stores positive received quantity and the outstanding quantity after receipt. |
+| inventory_balance | sku | References the product. `quantity_on_hand` must be non-negative. |
+| stock_movement | id | Stores a positive quantity change and timestamp. The unique `(receipt_id, sku)` key allows at most one movement per receipt line. |
+| app_user, auth_session, refresh_token, account_token | See V2 | Persistent account, role, session and token records. Invitation/reset token schema exists; those endpoints are not currently exposed. |
 
-The receipt service creates the receipt lines and their stock movements in the same transaction. The unique movement key enforces at most one movement per receipt line. The service ensures at least one line per order and receipt and exactly one movement per line.
+The schema enables row-level security on application tables and revokes direct access from Supabase anon, authenticated and PUBLIC roles. Application authorization is still enforced by Spring Security.
 
-Use `bigint` identity columns for generated IDs, `integer` for quantities, `timestamptz` for timestamps, and `text` for SKUs and idempotency keys. Require values for all listed columns.
+## Purchase-order price snapshot example
 
-## Implementation status
+If Supplier A offers SCREW-BOX for R12.50 and the order requests 20 boxes, the API stores the supplier, product name, quantity and R12.50 unit-price snapshot. The line total is R250.00. Updating Supplier A's catalogue later does not change this draft's saved price. The same SKU can have a different unit price in Supplier B's catalogue.
 
-Flyway `V1__initial_schema.sql` creates the seven application tables, constraints and indexes, enables RLS and revokes direct privileges from `anon`, `authenticated` and `PUBLIC`. V1 is applied and validated on the development Supabase database. Flyway's separate history table is hardened through the manual administration script. See [database operations](database-operations.md). Product JPA mapping and repository are implemented and startup validation succeeded. Remaining mappings and database integration tests are pending.
+## Current persistence status
 
-## Example
+JPA/Hibernate mappings and repositories support users/sessions, products, suppliers, supplier offers and purchase orders. Flyway creates the receipt and inventory tables, but corresponding receipt/inventory application services, endpoints and stock updates remain future work.
 
-An approved order contains 20 units of `PAINT-20L`. A delivery of 12 creates a receipt line for 12, leaves 8 outstanding on the order line, adds 12 to the inventory balance, and appends a stock movement of +12. The API can replay that receipt after later deliveries by using the stored order status and outstanding quantity from the original transaction.
+The planned receiving service will create exactly one stock movement per receipt line in the same transaction. The existing database constraint enforces the upper bound.
 
-[Technical specification](technical-specification.md) · [API contract](api-contract.md)
-
-## Planned authentication ERD
-
-```mermaid
-erDiagram
-    APP_USER ||--o{ AUTH_SESSION : owns
-    AUTH_SESSION ||--o{ REFRESH_TOKEN : rotates
-    APP_USER ||--o{ ACCOUNT_TOKEN : receives
-```
-
-See [security design](security-design.md) for fields and constraints. These tables are not yet migrated.
+See [database operations](database-operations.md), [technical specification](technical-specification.md) and [API contract](api-contract.md).

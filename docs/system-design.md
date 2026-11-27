@@ -1,67 +1,70 @@
 # Stock and Purchase Order System Design
 
-**Status.** First-release design. The Angular public homepage, Java purchase order domain, exception mapping and PostgreSQL schema are implemented. Backend startup and health are verified; business screens, endpoints and JPA persistence remain planned.
+This guide describes StockFlow on [`feature/auth-persistence`](https://github.com/AriesMaster/StockPurchaseOrderBackend/blob/feature/auth-persistence/docs/system-design.md). For the original `main` code and design, see the [baseline version](https://github.com/AriesMaster/StockPurchaseOrderBackend/blob/46754bb0c9ab96d6708aa9bb2e3341d6729a8c17/docs/system-design.md).
+
+## Implementation checkpoint — 27 November 2026
+
+The [Angular development branch](https://github.com/AriesMaster/StockPurchaseOrderFrontend/tree/feature/auth-ui) and [Spring Boot development branch](https://github.com/AriesMaster/StockPurchaseOrderBackend/tree/feature/auth-persistence) implement authentication and employee administration, supplier and product management, supplier-specific product catalogues, and draft purchase orders in Angular and Spring Boot. Administrators can maintain suppliers, products and supplier offers. Administrators and purchasing officers can create draft orders; all active roles can filter the order list and read order details. Draft lines save product-name and supplier-price snapshots.
+
+On 27 November 2026, `mvnw clean verify` passed 122 backend tests and packaged the executable JAR. The Angular production build succeeded with 123 passing Vitest tests across 16 files. Supabase’s development database recorded successful migrations V1–V6.
+
+**Next milestones** are order approval and cancellation, followed by receiving, stock updates and end-to-end verification.
 
 ## Purpose and scope
 
-Give a small business a record of what it ordered, what arrived, what is still outstanding, and how each delivery changed stock. The first release covers purchase order approval, partial and full receipts, stock balances, and stock movement history for a single location. Staff create orders and receive deliveries. An approver authorises orders before deliveries can be recorded. These are workflow roles. Authentication and permissions follow the security design. Authentication foundations exist on feature branches.
+StockFlow is being built for a small hardware store that needs to record what it wants to buy, which supplier offers each item, what has arrived, what remains due and how deliveries change stock. The current implementation covers product and supplier setup, supplier-specific prices and draft purchase orders. Approval, goods receiving and inventory tracking are the next workflow stages.
 
 ## Architecture
 
-| Component | Responsibility |
+| Component | Current responsibility |
 |---|---|
-| Angular frontend | Create orders, show approval and delivery status, submit receipts, and display stock balances and movement history. |
-| Spring Boot API | Accept HTTP requests and return JSON. Apply order and receipt rules in the Java domain model and coordinate database writes in application services. |
-| Spring Data JPA and Hibernate | Map persisted Java data to PostgreSQL and load it for the application services. |
-| PostgreSQL | Store products, purchase orders, receipts, inventory balances, and movement history. Enforce data integrity through keys and constraints. |
+| Angular frontend | Authentication and protected workspace; employee, supplier and product directories; supplier catalogue management; draft order creation, order listing/filtering and details. |
+| Spring Boot API | Login/session endpoints; employee and catalogue administration; product/supplier APIs; draft purchase-order validation and persistence. |
+| Spring Data JPA and Hibernate | Map users, products, suppliers, supplier offers and orders to PostgreSQL. |
+| PostgreSQL | Store account/session data, product and supplier catalogues, purchase orders and the schema for future receipts/inventory. |
 
-## From purchase order to inventory
+## Current purchase-order workflow
 
-```mermaid
-stateDiagram-v2
-    [*] --> Draft
-    Draft --> Approved: Approve order
-    Draft --> Cancelled: Cancel order
-    Approved --> Cancelled: Cancel before delivery
-    Approved --> PartiallyReceived: Record partial delivery
-    Approved --> Received: Receive all items
-    PartiallyReceived --> PartiallyReceived: More items remain
-    PartiallyReceived --> Received: Receive remaining items
-```
+1. An administrator creates a product master record with a SKU and name, then adds it to one or more supplier catalogues with a supplier-specific unit price.
+2. An administrator or purchasing officer chooses one active supplier. The interface shows only that supplier's active product offers.
+3. The user adds one or more products, enters positive whole-number quantities and creates a draft order.
+4. The API validates the active supplier, products and offers. It saves the product name and unit price on the order line, so later catalogue changes do not alter the draft.
+5. All active roles can list orders, filter by status and view order details.
 
-1. Staff create a draft order with a SKU and ordered quantity for each item. An approver approves the order before stock can be received.
-2. Staff record a delivery in Angular. Angular sends the received quantities and an idempotency key to the Spring Boot API. It reuses that key when retrying the same submission.
-3. The receipt service checks the order status and outstanding quantities. It saves the receipt, updates the order and inventory, and appends a stock movement for each receipt line in one PostgreSQL transaction.
-4. The API returns the receipt and updated order status as JSON. Angular displays the recorded quantities and any amount still outstanding.
+A purchase order is one request to one supplier. It can have several product lines. A product from one supplier cannot be added to a different supplier's order unless that supplier also has an active catalogue offer for it.
 
-## Example and failure behaviour
+## Future approval, receiving and inventory flow
 
-| Scenario | Expected result |
-|---|---|
-| An approved order is for 20 units and 12 arrive | The order becomes partially received. Eight units remain outstanding, inventory increases by 12, and the movement history shows +12. |
-| The same receipt is retried with the original key and quantities | The API returns the original receipt. Inventory and movement history stay the same. |
-| Another delivery attempts to add 9 units when 8 remain | The API rejects the delivery. The order, inventory, and movement history stay the same. |
-| A database write fails while recording a delivery | The transaction rolls back so the receipt, order status, stock balance, and movement history stay consistent. |
+The intended next workflow is: purchasing officer creates a draft → approver approves → warehouse officer records deliveries → inventory balances and movements update. These later endpoints and screens are not implemented.
 
-## Implementation and verification
+The target receiving example is an approved order for 20 units. Recording 12 would leave 8 outstanding. A receipt that tries to add 9 would be rejected. Receipt idempotency, database locking and atomic inventory changes are still design work, not current behavior.
 
-1. Completed: Java 21-targeted starter, domain tests, PostgreSQL connection, Flyway V1 and local health check.
-2. Next: JPA entities, repositories and PostgreSQL integration tests.
-3. Implement transactional services and REST endpoints; verify retries, concurrency and rollback.
-4. Connect Angular screens, verify the end-to-end example and configure CI/CD.
+## Verification and next steps
+
+**Verified locally on 27 November 2026**
+
+- Backend: 122 tests passed; Maven verification and JAR packaging succeeded.
+- Frontend: production build succeeded; 123 Vitest tests passed across 16 files.
+- Database: V1–V6 migrations validated on the development PostgreSQL database.
+- Browser evidence: the local order directory displayed two saved drafts before the supplier picker was changed. A complete walkthrough with the new catalogue picker remains outstanding.
+
+**Next:** verify the new flows in a browser, add dedicated purchase-order UI/end-to-end tests, implement order approval and cancellation, then add transactional receipts and inventory movement processing.
 
 ## Detailed designs
 
-- [Physical data flow diagram](physical-dfd.md) for browser, API, and database exchanges.
-- [Backend technical specification](technical-specification.md) for Java responsibilities, business rules, and receipt transaction behaviour.
-- [Spring Boot API contract](api-contract.md) for endpoints, JSON payloads, and error responses.
-- [Database design and ERD](database-design.md) for PostgreSQL tables, relationships, and constraints.
-- [Angular frontend repository](https://github.com/AriesMaster/stock-purchase-order-frontend) for the user interface.
+- [Physical data flow diagram](physical-dfd.md) for the implemented and planned browser/API/database paths.
+- [Backend technical specification](technical-specification.md) for current API responsibilities and future receipt behavior.
+- [Spring Boot API contract](api-contract.md) for current routes, role rules and planned endpoints.
+- [Database design and ERD](database-design.md) for migrations V1–V6 and the target receipt/inventory schema.
+- [Security design](security-design.md) for sessions, CSRF and current endpoint permissions.
+- [Angular frontend](https://github.com/AriesMaster/StockPurchaseOrderFrontend/tree/feature/auth-ui)
 
-## Authentication extension (in development)
+## Authentication and authorization
 
-Angular authenticates through Spring Security before accessing business endpoints. Four roles separate purchasing, approval, warehouse and administration. See [security design](security-design.md) for the authoritative permission and session model; this supersedes earlier open authentication decisions.
+Spring Security validates short-lived JWT access tokens against persisted sessions. Refresh tokens rotate through a secure cookie, and unsafe requests require CSRF. The server restricts employee, supplier, product, supplier-catalogue and purchase-order operations by role. See [security design](security-design.md).
 
 ## Cloud topology (deployed preview)
 
-Browser → Netlify Angular SPA → HTTPS API proxy → Render Docker Spring Boot → JDBC/TLS → Supabase PostgreSQL. Both hosting deployments are published and backend health is verified. Proxy and end-to-end business/authentication flows remain unverified. See [cloud deployment and operations](cloud-deployment.md).
+Browser → Netlify Angular SPA → HTTPS API proxy → Render Docker Spring Boot → JDBC/TLS → Supabase PostgreSQL.
+
+Render health returned UP and the Netlify CSRF proxy response was verified on 26 November 2026. The latest product/catalogue/order changes passed local verification on 27 November; their deployment and full cloud browser workflows remain unverified. See [cloud deployment and operations](cloud-deployment.md).

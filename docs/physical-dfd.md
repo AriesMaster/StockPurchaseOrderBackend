@@ -1,46 +1,54 @@
 # Physical data flow diagram
 
-**Status.** Target Level 1 physical DFD for the first release. Angular public shell, Spring Boot runtime and PostgreSQL schema exist; the business data flows shown are not yet operational. It shows the implementation path for order approval, receipt processing, and inventory queries.
+This guide describes StockFlow on [`feature/auth-persistence`](https://github.com/AriesMaster/StockPurchaseOrderBackend/blob/feature/auth-persistence/docs/physical-dfd.md). For the original `main` code and design, see the [baseline version](https://github.com/AriesMaster/StockPurchaseOrderBackend/blob/46754bb0c9ab96d6708aa9bb2e3341d6729a8c17/docs/physical-dfd.md).
+
+## Implemented flows
+
+```mermaid
+flowchart LR
+    Staff[Administrator and staff] -->|Form input| UI[Angular workspace]
+    UI -->|HTTPS JSON + Bearer + CSRF| Sec[Spring Security and API]
+    Sec -->|Authorized requests| Svc[Transactional services and JPA]
+    Svc -->|SQL reads/writes| DB[(Supabase PostgreSQL)]
+    DB -->|Rows and snapshots| Svc
+    Svc -->|JSON responses/errors| UI
+    UI -->|Status, records and order totals| Staff
+```
+
+Current flows include authentication/session management, employee administration, supplier and product maintenance, supplier-specific product offers, and draft purchase-order creation/list/detail.
+
+- ADMIN manages employees, suppliers, products and supplier offers.
+- All active roles can read suppliers, products, offers and purchase orders.
+- ADMIN and PURCHASING_OFFICER can create purchase orders.
+- A new draft references one supplier and saves product names and prices from that supplier's active catalogue.
+
+## Draft-order data flow
+
+1. An administrator sets up products and assigns them to supplier catalogues with current unit prices.
+2. A purchasing user chooses one supplier, then adds one or more active products from that supplier's catalogue with quantities.
+3. Angular requests CSRF then posts the draft to POST /api/purchase-orders.
+4. Spring Security validates token/session, role and CSRF. The service validates supplier/product/offer state, snapshots product names and prices, and commits the draft through JPA.
+5. The API returns JSON with supplier name, order status, line quantities, unit prices, line totals and order total. Angular displays the draft in the order directory and details view.
+
+## Future receipt and inventory data flow
+
+Approval, receiving and inventory updates are not yet implemented. The intended future path is:
 
 ```mermaid
 flowchart TB
-    Staff["Purchasing and receiving staff"]
-    Approver["Order approver"]
-    Browser("1.0 Angular screens in browser")
-    Order("2.0 Spring Boot order API")
-    Receipt("3.0 Spring Boot receipt API")
-    Inventory("4.0 Spring Boot inventory API")
-    DB[("D1 PostgreSQL")]
-    
-    Staff -->|"Item quantities, delivery details, stock filters"| Browser
-    Approver -->|"Order ID and approval action"| Browser
-    Browser -->|"Order status, receipt confirmation and stock views"| Staff
-    Browser -->|"Order details and approval outcome"| Approver
-
-    Browser -->|"HTTPS: order details and approval requests"| Order
-    Order -->|"JSON: order details, status or validation errors"| Browser
-    Browser -->|"HTTPS: received quantities and idempotency key"| Receipt
-    Receipt -->|"JSON: receipt, outstanding quantities or errors"| Browser
-    Browser -->|"HTTPS: SKU and stock movement queries"| Inventory
-    Inventory -->|"JSON: stock balances and movements"| Browser
-
-    Order -->|"SQL: order and line writes"| DB
-    DB -->|"Order and product rows"| Order
-    Receipt -->|"SQL: receipt, order, balance and movement writes"| DB
-    DB -->|"Locked order and balance rows, stored receipt"| Receipt
-    Inventory -->|"SQL: balance and movement queries"| DB
-    DB -->|"Balance and movement rows"| Inventory
+    Warehouse[Warehouse officer] -->|Received quantities| UI[Angular workspace]
+    UI -->|HTTPS + receipt idempotency key| API[Spring Boot receipt API]
+    API -->|Transaction: receipt, order, balance, movement| DB[(PostgreSQL)]
+    DB -->|Committed result| API
+    API -->|Receipt and outstanding quantities| UI
 ```
 
-## Implementation notes
+A receipt should update order quantities, inventory balances and stock movements atomically. Retries should return the original receipt without counting stock twice. These are future design requirements.
 
-- The three Spring Boot processes represent responsibilities inside one application. Spring Data JPA and Hibernate handle database access.
-- A receipt and its inventory changes commit together. A valid retry returns the stored receipt without creating another movement.
-- PostgreSQL is the persistent data store. Its tables and keys are defined in the [database design and ERD](database-design.md).
-- Staff and approver labels describe who handles each workflow step. Authentication and cloud topology are defined; the business flows above remain target flows.
+## Cloud topology
+
+Browser → Netlify Angular SPA → HTTPS API proxy → Render Docker Spring Boot → JDBC/TLS → Supabase PostgreSQL.
+
+Backend health and the Netlify CSRF response were verified on 26 November 2026. On 27 November both local builds passed. A hosted browser walkthrough of the latest catalogue and draft-order flow remains pending.
 
 [System design](system-design.md) · [API contract](api-contract.md)
-
-## Cloud topology (deployed preview)
-
-Browser → Netlify Angular SPA → HTTPS API proxy → Render Docker Spring Boot → JDBC/TLS → Supabase PostgreSQL. Both hosting deployments are published and backend health is verified. Proxy and end-to-end business/authentication flows remain unverified. See [cloud deployment and operations](cloud-deployment.md).
